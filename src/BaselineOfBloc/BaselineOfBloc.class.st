@@ -7,41 +7,35 @@ The central concept is ${class:BlElement}$.
 
 !!Organization
 
-The packages of Bloc are organized as follows. The visualization also shows the depended projects in gray.
-
-${example:BaselineOfBloc class>>#itself|previewShow=#gtPackagesMapFor:|noCode=|previewHeight=300}$
-
-
+The packages of Bloc are organized as follows. The visualization also shows the depended projects in gray: ${class:BaselineOfBloc|show=#gtPackagesMapFor:|expanded=true}$
 
 
 "
 Class {
 	#name : #BaselineOfBloc,
 	#superclass : #BaselineOf,
+	#classVars : [
+		'PostLoaded'
+	],
 	#category : #BaselineOfBloc
 }
-
-{ #category : #accessing }
-BaselineOfBloc class >> itself [
-	<gtExample>
-	^ self
-]
 
 { #category : #baseline }
 BaselineOfBloc >> baseline: spec [
 	<baseline>
 	spec for: #'common' do: [
+		spec postLoadDoIt: #'postLoadBloc:'.
 		spec 
 			baseline: 'BlocCore' with: [
-				spec repository: 'github://pharo-graphics/Bloc:v0.4.1/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'BlocLayout' with: [
-				spec repository: 'github://pharo-graphics/Bloc:v0.4.1/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'Sparta' with: [
-				spec repository: 'github://syrel/Sparta:v0.4.1/src' ];
+				spec repository: 'github://feenkcom/Sparta/src' ];
 			baseline: 'TaskIt' with: [
 				spec repository: 'github://sbragagnolo/taskit:v1.0.1' ];
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.4.1/src' ].
+				spec repository: 'github://feenkcom/gtoolkit-examples/src' ].
 		spec 
 			package: #'Bloc-Geometry' with: [
 				spec requires: #(#BlocCore ). ];
@@ -71,9 +65,33 @@ BaselineOfBloc >> baseline: spec [
 				spec requires: #(#BlocCore ). ];
 			package: #'BlocHost-Morphic' with: [
 				spec requires: #(#BlocCore ). ];
+			package: #'BlocHost-OSWindow' with: [
+				spec requires: #(#BlocCore 'Bloc-Sparta'). ];
 			package: #'Bloc-Extensions' with: [
 				spec requires: #('BlocCore' 'Bloc-Sparta' 'Bloc-Animation' 'Bloc-DevTool' ). ];
 			package: 'Bloc-TaskIt' with: [
 				spec requires: #('TaskIt' 'BlocCore' #'Bloc-Animation' #'Bloc-Text-Elements' ). ]. ].
 
+]
+
+{ #category : #'post load' }
+BaselineOfBloc >> postLoadBloc: spec [
+	(PostLoaded isNotNil and: [ PostLoaded ])
+		ifTrue: [ ^ self ].
+		
+	PostLoaded := true.
+	self postLoadDisableTaskItDebugger: spec.
+	self postLoadMorphicHost: spec
+	
+]
+
+{ #category : #'post load' }
+BaselineOfBloc >> postLoadDisableTaskItDebugger: spec [
+	TKTConfiguration profile: TKTProfile test.
+	TKTDebugger disable.
+]
+
+{ #category : #'post load' }
+BaselineOfBloc >> postLoadMorphicHost: spec [
+	BlBlocMorphicUIManager useAsDefault
 ]

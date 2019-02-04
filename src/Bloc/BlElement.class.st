@@ -1041,6 +1041,42 @@ BlElement >> dispatchRemovedFromSceneGraph [
 	self childrenDo: [ :anElement | anElement dispatchRemovedFromSceneGraph ]
 ]
 
+{ #category : #'geometry bounds' }
+BlElement >> distanceTo: aPoint [
+	"Compute the euclidian distance from my closest edge to a provided point both given in my parent coordinates"
+	<return: #Number>
+	| aClampedPoint theBoundsInParent |
+	
+	theBoundsInParent := self bounds inParent.
+	aClampedPoint := (aPoint min: theBoundsInParent bottomRight) max: theBoundsInParent topLeft.
+	
+	^ aClampedPoint distanceTo: aPoint
+]
+
+{ #category : #'geometry bounds' }
+BlElement >> distanceToX: aPoint [
+	"Compute the horizontal distance from my closest edge to a provided x coorinate of a point both given in my parent coordinates"
+	<return: #Number>
+	| aClampedCoordinate theBoundsInParent |
+	
+	theBoundsInParent := self bounds inParent.
+	aClampedCoordinate := (aPoint x min: theBoundsInParent right) max: theBoundsInParent left.
+	
+	^ (aClampedCoordinate - aPoint x) abs
+]
+
+{ #category : #'geometry bounds' }
+BlElement >> distanceToY: aPoint [
+	"Compute the vertical distance from my closest edge to a provided y coorinate of a point both given in my parent coordinates"
+	<return: #Number>
+	| aClampedCoordinate theBoundsInParent |
+	
+	theBoundsInParent := self bounds inParent.
+	aClampedCoordinate := (aPoint y min: theBoundsInParent bottom) max: theBoundsInParent top.
+	
+	^ (aClampedCoordinate - aPoint y) abs
+]
+
 { #category : #accessing }
 BlElement >> effect [
 	"Return currently applied effect.
@@ -2374,6 +2410,20 @@ BlElement >> onRemovedFromSceneGraph [
 	space := nil
 ]
 
+{ #category : #'hooks - geometry' }
+BlElement >> onTransformationChanged [
+	"Is sent when my transformation changed"
+	
+	self onTransformationInSpaceChanged
+]
+
+{ #category : #'hooks - geometry' }
+BlElement >> onTransformationInSpaceChanged [
+	"Is sent when my transformation in space changed, it may be that my own transformation changed or of my parent"
+	
+	self children do: [ :eachChild | eachChild onTransformationInSpaceChanged ]
+]
+
 { #category : #accessing }
 BlElement >> opacity [
 	"Return my transparency degree.
@@ -3142,7 +3192,9 @@ BlElement >> transformation: anElementTransformation [
 	self invalidate.
 	transformation := anElementTransformation owner: self.
 	self boundsCache invalidateBoundsInSpace.
-	self invalidate
+	self invalidate.
+
+	self onTransformationChanged
 ]
 
 { #category : #'geometry bounds' }

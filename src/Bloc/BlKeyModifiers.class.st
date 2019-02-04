@@ -4,7 +4,7 @@ Class {
 	#instVars : [
 		'hashKey'
 	],
-	#category : 'Bloc-Event'
+	#category : #'Bloc-Events'
 }
 
 { #category : #'as yet unclassified' }
@@ -131,10 +131,10 @@ BlKeyModifiers >> isPrimaryModifier [
 	
 	aPrimaryModifier := OSPlatform current primaryModifier.
 
-	(self isCmd and: [ (aPrimaryModifier includes: Key leftMeta) or: [ (aPrimaryModifier includes: Key rightMeta) ] ])
+	(self isCmd and: [ (aPrimaryModifier includes: BlKeyboardKey metaLeft) or: [ (aPrimaryModifier includes: BlKeyboardKey metaRight) ] ])
 		ifTrue: [ ^ true ].
 		
-	(self isCtrl and: [ (aPrimaryModifier includes: Key leftControl) or: [ (aPrimaryModifier includes: Key rightControl) ] ])
+	(self isCtrl and: [ (aPrimaryModifier includes: BlKeyboardKey controlLeft) or: [ (aPrimaryModifier includes: BlKeyboardKey controlRight) ] ])
 		ifTrue: [ ^ true ].
 
 	^ false

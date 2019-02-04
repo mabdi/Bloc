@@ -33,7 +33,7 @@ Class {
 	#instVars : [
 		'key'
 	],
-	#category : 'Bloc-KeyBinding'
+	#category : #'Bloc-Events-KeyBinding'
 }
 
 { #category : #accessing }
@@ -53,7 +53,7 @@ BlSingleKeyCombination >> includes: aKey [
 
 { #category : #accessing }
 BlSingleKeyCombination >> key [
-	<return: #Key>
+	<return: #BlKeyboardKey>
 
 	^ key
 ]

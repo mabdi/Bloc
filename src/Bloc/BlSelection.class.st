@@ -42,6 +42,23 @@ BlSelection >> allSelections [
 	^ Array streamContents: [ :aStream | self do: [ :aSelection | aStream nextPut: aSelection ] ]
 ]
 
+{ #category : #'api - enumerating' }
+BlSelection >> anySatisfy: aBlock [
+	"Evaluate aBlock with the elements of the receiver.
+	If aBlock returns true for any element return true.
+	Otherwise return false."
+
+	self do: [:each | (aBlock value: each) ifTrue: [ ^ true ] ].
+	^ false
+]
+
+{ #category : #accessing }
+BlSelection >> children [
+	<return: #Collection of: #BlSelection>
+	
+	^ self subclassResponsibility
+]
+
 { #category : #'api - testing' }
 BlSelection >> contains: anIndex [
 	"Return true if this selection interval includes a given index, false otherwise"

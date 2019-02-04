@@ -75,6 +75,13 @@ BlOSWindowEventHandler >> convertButton: osButton [
 ]
 
 { #category : #converting }
+BlOSWindowEventHandler >> convertKeyFromEvent: anEvent [
+	<return: #BlKeyboardKey>
+
+	^ BlOSWindowKeyboardKeyTable default keyFromScanCode: anEvent scanCode
+]
+
+{ #category : #converting }
 BlOSWindowEventHandler >> convertKeyModifiers: modifiers [
 	<return: #BlKeyModifiers>
 
@@ -150,42 +157,32 @@ BlOSWindowEventHandler >> time: aTime [
 
 { #category : #'visiting keyboard' }
 BlOSWindowEventHandler >> visitKeyDownEvent: anEvent [
-	| aBlocEvent |
+	| aBlEvent |
 
-	aBlocEvent := BlKeyDownEvent new
-		key: (Key value: (self mapSymbolToKeyValue: anEvent symbol));
+	aBlEvent := BlKeyDownEvent new
+		key: (self convertKeyFromEvent: anEvent);
 		scanCode: anEvent scanCode;
 		modifiers: (self convertKeyModifiers: anEvent modifiers);
 		timestamp: DateAndTime now;
 		position: anEvent position;
 		screenPosition: window position + anEvent position.
 
-	NonInteractiveTranscript stdout show: aBlocEvent; cr.
-
-	self enqueue: aBlocEvent
+	self enqueue: aBlEvent
 ]
 
 { #category : #'visiting keyboard' }
 BlOSWindowEventHandler >> visitKeyUpEvent: anEvent [
-	| aBlocEvent |
+	| aBlEvent |
 
-	NonInteractiveTranscript stdout
-		show: 'scanCode = ', anEvent scanCode asString;
-		show: 'symbol = ', anEvent symbol asString;
-		show: 'character = ', anEvent character asString;
-		cr.
-
-	aBlocEvent := BlKeyUpEvent new
-		key: (Key value: (self mapSymbolToKeyValue: anEvent symbol));
+	aBlEvent := BlKeyUpEvent new
+		key: (self convertKeyFromEvent: anEvent);
 		scanCode: anEvent scanCode;
 		modifiers: (self convertKeyModifiers: anEvent modifiers);
 		timestamp: DateAndTime now;
 		position: anEvent position;
 		screenPosition: window position + anEvent position.
-	
-	NonInteractiveTranscript stdout show: aBlocEvent; cr.
 
-	self enqueue: aBlocEvent
+	self enqueue: aBlEvent
 ]
 
 { #category : #'visiting - mouse' }
@@ -254,8 +251,8 @@ BlOSWindowEventHandler >> visitMouseWheelEvent: anEvent [
 		ifTrue: [ ^ self ].
 	
 	aBlocEvent := BlMouseWheelEvent new
-		isTouch: anEvent isTouch;
-		vector: (BlVector x: horizontal negated y: vertical);
+		isTouch: false;
+		vector: (BlVector x: horizontal y: vertical);
 		position: anEvent position;
 		screenPosition: window position + anEvent position;
 		direction: (vertical > 0 ifTrue: [Character arrowUp] ifFalse: [Character arrowDown]);
@@ -361,11 +358,7 @@ BlOSWindowEventHandler >> visitTouchTwoFingersScrollBeginEvent: anEvent [
 
 { #category : #'visiting - gestures' }
 BlOSWindowEventHandler >> visitTouchTwoFingersScrollMoveEvent: anEvent [
-	| aBlocEvent horizontal vertical |
-	
-	"NonInteractiveTranscript stdout show: anEvent direction; cr.
-	NonInteractiveTranscript stdout show: anEvent vector; cr.
-	NonInteractiveTranscript stdout show: '---------------------'; cr."
+	"| aBlocEvent horizontal vertical |
 	
 	horizontal := (anEvent dDist abs * anEvent vector) x negated.
 	vertical := (anEvent dDist abs * anEvent vector) y.
@@ -377,7 +370,7 @@ BlOSWindowEventHandler >> visitTouchTwoFingersScrollMoveEvent: anEvent [
 		timestamp: self time now;
 		yourself.
 
-	self enqueue: aBlocEvent
+	self enqueue: aBlocEvent"
 ]
 
 { #category : #visiting }
