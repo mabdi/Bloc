@@ -27,15 +27,15 @@ BaselineOfBloc >> baseline: spec [
 		spec postLoadDoIt: #'postLoadBloc:'.
 		spec 
 			baseline: 'BlocCore' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.4.3/src' ];
+				spec repository: 'github://feenkcom/Bloc:v0.4.11/src' ];
 			baseline: 'BlocLayout' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.4.3/src' ];
+				spec repository: 'github://feenkcom/Bloc:v0.4.11/src' ];
 			baseline: 'Sparta' with: [
-				spec repository: 'github://feenkcom/Sparta:v0.4.2/src' ];
+				spec repository: 'github://feenkcom/Sparta:v0.4.11/src' ];
 			baseline: 'TaskIt' with: [
 				spec repository: 'github://sbragagnolo/taskit:v1.0.1' ];
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.4.4/src' ].
+				spec repository: 'github://feenkcom/gtoolkit-examples:v0.4.11/src' ].
 		spec 
 			package: #'Bloc-Geometry' with: [
 				spec requires: #(#BlocCore ). ];
