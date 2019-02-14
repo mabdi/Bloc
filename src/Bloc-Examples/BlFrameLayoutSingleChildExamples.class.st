@@ -3,26 +3,9 @@ I contain examples of positioning a single element within a parent element that 
 "
 Class {
 	#name : #BlFrameLayoutSingleChildExamples,
-	#superclass : #Object,
+	#superclass : #BlFrameLayoutChildrenExamples,
 	#category : #'Bloc-Examples-Layout'
 }
-
-{ #category : #'examples - setup' }
-BlFrameLayoutSingleChildExamples >> childElementMatchingParent [
-	<gtExample>
-	| element |
-	element := self childElementWithVisualProperties.
-	element constraintsDo: [ :c | 
-		c vertical matchParent.
-		c horizontal matchParent ].
-	
-	self assert: element position equals: 0@0.
-	self assert: element extent equals: 0@0.
-	self assert: element constraints horizontal resizer isMatchParent.
-	self assert: element constraints vertical resizer isMatchParent.
-	
-	^ element
-]
 
 { #category : #'examples - setup' }
 BlFrameLayoutSingleChildExamples >> childElementMatchingParentWith25per50Percent [
@@ -66,37 +49,52 @@ BlFrameLayoutSingleChildExamples >> childElementMatchingParentWith50per40Percent
 	^ element
 ]
 
-{ #category : #'examples - setup' }
-BlFrameLayoutSingleChildExamples >> childElementWithExactSize100per50 [
+{ #category : #'examples - alignment' }
+BlFrameLayoutSingleChildExamples >> elementDocumentationWithOneExactChildAlignBottomRightInExactParent [
 	<gtExample>
-	| element |
-	element :=  self childElementWithVisualProperties.
-	element constraintsDo: [ :c |
-		c horizontal exact: 100.
-		c vertical exact: 50 ].
-		
-	self assert: element position equals: 0@0.
-	self assert: element extent equals: 0@0.
-	self assert: element constraints horizontal resizer size equals: 100.
-	self assert: element constraints vertical resizer size equals: 50.
+	| child parent |
+	child := self childElementWithVisualProperties.
+	child constraintsDo: [ :c |
+		c horizontal exact: 140.
+		c vertical exact: 140.
+		c frame horizontal alignRight.
+		c frame vertical alignBottom ].
+
+	parent := self parentWithFrameLayoutAndFixedSize.	
+	parent size: 300@300.
+	parent addChild: child.
 	
-	^ element
+	parent forceLayout.
+	self assert: child position equals: 160@160.
+	self assert: child extent equals: 140@140.
+	self assert: parent position equals: 0@0.
+	self assert: parent extent equals: 300@300.
+	
+	^ parent
 ]
 
-{ #category : #'examples - setup' }
-BlFrameLayoutSingleChildExamples >> childElementWithVisualProperties [
+{ #category : #'examples - weight' }
+BlFrameLayoutSingleChildExamples >> elementForDocumentationWithOneChildMatchExactParentWithWeight [
 	<gtExample>
-	| element |
-	element :=  BlElement new
-		background: Color cyan;
-		border: (BlBorder builder paint: Color blue; width: 1; build);
-		yourself.
+	| parent child |
 	
-	self assert: element border width equals: 1.
-	self assert: element border paint equals: Color blue asBlPaint.
-	self assert: element background equals: Color cyan asBlBackground.
-		
-	^ element
+	child := self childElementWithVisualProperties.
+	child constraintsDo: [ :c | 
+		c vertical matchParent.
+		c horizontal matchParent.
+		c frame horizontal weight: 0.9.
+		c frame vertical weight: 0.5 ].
+	parent := self parentWithFrameLayoutAndFixedSize.
+	parent addChild: child.
+	parent forceLayout.
+	
+	self assert: child position equals: 0@0.
+	self assert: child extent equals: 360@150.
+	
+	self assert: parent position equals: 0@0.
+	self assert: parent extent equals: 400@300.
+	
+	^ parent
 ]
 
 { #category : #'examples - matching parent' }
@@ -123,7 +121,10 @@ BlFrameLayoutSingleChildExamples >> elementWithOneChildMatchExactParentWithPaddi
 	<gtExample>
 	| aChild aParent |
 	
-	aChild := self childElementMatchingParent.
+	aChild := self childElementWithVisualProperties.
+	aChild constraintsDo: [ :c | 
+		c vertical matchParent.
+		c horizontal matchParent ].
 	aParent := self parentWithFrameLayoutAndFixedSize.
 
 	aParent constraints 
@@ -145,7 +146,10 @@ BlFrameLayoutSingleChildExamples >> elementWithOneChildMatchExactParentWithPaddi
 	<gtExample>
 	| aChild aParent |
 	
-	aChild := self childElementMatchingParent.
+	aChild := self childElementWithVisualProperties.
+	aChild constraintsDo: [ :c | 
+		c vertical matchParent.
+		c horizontal matchParent ].
 	aChild margin: (BlInsets top: 40 right: 30 bottom: 20 left: 10).
 	
 	aParent := self parentWithFrameLayoutAndFixedSize.
@@ -219,6 +223,56 @@ BlFrameLayoutSingleChildExamples >> elementWithOneChildMatchExactParentWithWeigh
 
 	self assert: child position equals: 50@50.
 	self assert: child extent equals: 75@100.
+	
+	self assert: parent position equals: 0@0.
+	self assert: parent extent equals: 400@300.
+	
+	^ parent
+]
+
+{ #category : #'examples - weight' }
+BlFrameLayoutSingleChildExamples >> elementWithOneChildWithExactSizeParentWithWeight [
+	<gtExample>
+	| parent child |
+	
+	child := self childElementWithVisualProperties.
+	child constraintsDo: [ :c |
+		c horizontal exact: 140.
+		c vertical exact: 140.
+		c frame horizontal weight: 0.9.
+		c frame vertical weight: 0.5 ].
+	
+	parent := self parentWithFrameLayoutAndFixedSize.
+	parent addChild: child.
+	parent forceLayout.
+	
+	self assert: child position equals: 0@0.
+	self assert: child extent equals: 140@140.
+	
+	self assert: parent position equals: 0@0.
+	self assert: parent extent equals: 400@300.
+	
+	^ parent
+]
+
+{ #category : #'examples - alignment' }
+BlFrameLayoutSingleChildExamples >> elementWithOneExactChildAlignBottomCenterAndWithWeightInExactParent [
+	<gtExample>
+	| child parent |
+	child := self childElementWithExactSize100per50.
+	child constraintsDo: [ :c |
+		c frame horizontal weight: 0.9.
+		c frame vertical weight: 0.5.
+		c frame horizontal alignCenter.
+		c frame vertical alignBottom.  ].
+
+	parent := self parentWithFrameLayoutAndFixedSize.
+	parent addChild: child.
+
+	parent forceLayout.
+
+	self assert: child position equals: 150@250.
+	self assert: child extent equals: 100@50.
 	
 	self assert: parent position equals: 0@0.
 	self assert: parent extent equals: 400@300.
@@ -674,23 +728,56 @@ BlFrameLayoutSingleChildExamples >> elementWithOneExactChildAlignTopRightInExact
 	^ parent
 ]
 
-{ #category : #'examples - setup' }
-BlFrameLayoutSingleChildExamples >> parentWithFrameLayoutAndFixedSize [
+{ #category : #'examples - fit content' }
+BlFrameLayoutSingleChildExamples >> elementWithOneExactChildAndFitContentParent [
 	<gtExample>
-	| element |
-	element :=  BlElement new
+	| child aParent |
+	child := self childElementWithVisualProperties.
+	child constraintsDo: [ :c | 
+		c vertical exact: 140.
+		c horizontal exact: 140 ].
+	aParent := BlElement new
 		layout: BlFrameLayout new;
 		border: (BlBorder builder dashed; paint: Color red; width: 3; build);
-		size: 400@300;
-		yourself.
-		
-	self assert: element position equals: 0@0.
-	self assert: element extent equals: 0@0.
-	self assert: element constraints horizontal resizer size equals: 400.
-	self assert: element constraints vertical resizer size equals: 300.
-	self assert: element layout class equals: BlFrameLayout.
-	self assert: element border width equals: 3.
-	self assert: element border paint equals: Color red asBlPaint.
+		constraintsDo: [ :c | 
+			c vertical fitContent.
+			c horizontal fitContent ].
 	
-	^ element
+	aParent addChild: child.
+	aParent forceLayout.
+	
+	self assert: child position equals: 0@0.
+	self assert: child extent equals: 140@140.
+	
+	self assert: aParent position equals: 0@0.
+	self assert: aParent extent equals: 140@140.
+	
+	^ aParent
+]
+
+{ #category : #'examples - fit content' }
+BlFrameLayoutSingleChildExamples >> elementWithOneMatchParentChildAndFitContentParent [
+	<gtExample>
+	| child aParent |
+	child := self childElementWithVisualProperties.
+	child constraintsDo: [ :c | 
+		c vertical matchParent.
+		c horizontal matchParent ].
+	aParent := BlElement new
+		layout: BlFrameLayout new;
+		border: (BlBorder builder dashed; paint: Color red; width: 3; build);
+		constraintsDo: [ :c | 
+			c vertical fitContent.
+			c horizontal fitContent ].
+	
+	aParent addChild: child.
+	aParent forceLayout.
+	
+	self assert: child position equals: 0@0.
+	self assert: child extent equals: 0@0.
+	
+	self assert: aParent position equals: 0@0.
+	self assert: aParent extent equals: 0@0.
+	
+	^ aParent
 ]
