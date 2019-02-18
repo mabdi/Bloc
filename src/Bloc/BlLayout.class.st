@@ -1,9 +1,53 @@
 "
-I represent an abstract Bloc layout.
+!Bloc layout
+I am the superclass for layouts in Bloc and I define the API that a concrete layout needs to implement.
 
+I am attached to a bloc element and define the visual structure of that bloc element. Tipically this includes the position of child elements within the parent, or the size of the parent element. 
+
+!!Layout constraints
+I support a set of attributes (refered to as constraints in Bloc) which define the visual properties of the layout. A small set of constraints, like padding, margin or minimal and maximum dimensions, are common among all the layouts. Each layout has a dedicated constraint objects, instance of ${class:BlLayoutCommonConstraints}$, that contain these common constraints. Each type of layout can further define its own specific constraints by creating a subclass of ${class:BlLayoutConstraints}$. 
+
+TODO: constraints API
+
+!!Layout phase in a frame
+Layouting of elements is a phase executed by a space during every frame. 
+
+Every frame, the space goes through several phases (${method:BlSpaceFrame>>#initializePhases}$). Phases are modeled as subclasses of ${class:BlSpaceFramePhase}$ and are executed once per frame. One of them, ${class:BlSpaceFrameLayoutPhase}$, consists in layouting the elements contained in the space. This is done after events and tasks have been executed, but before the drawing phase.
+
+Layouting needs to be executed during a frame when various properties like, width, height or position change in any element contained by the space. However, an important aspect in Bloc, is that when one of these property changes, layouting is not performed immediately. Instead, a layout request is issues by the element using the message ${method:BlElement>>#requestLayout:}$. This has the advantage that if no element request layout, this phase is skipped. Also it does not matter if layout is requeste one or 1000 time; only one layout phase is performed improving performance. 
+
+Hence, in Bloc layout is not executed immediately after a property like the width of an element changes. Instead layout is requested and perfomed, if needed, during every frame. When needing to test layouts, however, it is necessary to apply a layout immediately, instead of waiting for a frame to end. That can be done using ${method:BlElement>>#forceLayout}$; this should not be used outside of tests, as it bypasses the normal layouting system from Bloc.
+
+In a space where all elements have no event handlers for layout events, the layout process is going to happen only once during the layouting phase. However, often elements need to reach and perform actions, when for example their position or extent changes. They can react by requesting another layout. A tipical example is deadling with edges. An edge can be layouted only after the position of the elements that it connects is known. Hence, often the layout needs to be applied twice, or more, during the layouting phase. The space only allows layout requests during the layouting phase a limited number of times (${method:BlSpace>>#computeLayout}$) to avoid blocking rendering due to infinite recursions caused by layout requests, or void spending too much time on layouts in a frame.
+
+!!Layout steps
+
+TODO
+	- Space starts the measurement process from the root element; after measurement it tell children to measure themselves, etc
+	- measurement; top to bottom though all the composition of elements.
+		- this step find the size of an element and sets measuredExtent (or position sometimes)
+	- space starts the layout step
+		- as we know the size of each child we compute the actual position for each child
+		- changes the real extent to measured extent and the real position to the computed layout position
+	- Elements announce events for position and extent changed
+	
+	Without event handlers the layout process is going to happen only once.
+	For example when nodes change the position edges should be updated.
+	
+!!Layout events
+
+TODO
+
+!!Layout API
 I define an api of a layout. Concrete implementations should focus on measure:with: and layout:in:
 
-I am used by bloc elements.
+
+
+
+
+
+	
+
 "
 Class {
 	#name : #BlLayout,
@@ -16,7 +60,7 @@ Class {
 		'direction',
 		'waitingLayout'
 	],
-	#category : 'Bloc-Layouts-Basic'
+	#category : #'Bloc-Layouts-Basic'
 }
 
 { #category : #constraints }
