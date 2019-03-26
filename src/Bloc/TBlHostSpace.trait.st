@@ -67,8 +67,13 @@ TBlHostSpace >> fetchedEventsDo: aBlock [
 	self eventFetcher fetchedEventsDo: aBlock
 ]
 
+{ #category : #'host space - events' }
+TBlHostSpace >> generateEvents [
+	"Generate more complex state change events such as window scale event when resolution of the screen changes"
+]
+
 { #category : #'host space - testing' }
-TBlHostSpace >> hasResized [
+TBlHostSpace >> hasScaled [
 	"Return true if renderer extent changed.
 	It may happen if window moved between displays with different dpi,
 	e.g. from normal display to retina"
@@ -148,7 +153,6 @@ TBlHostSpace >> maximize [
 
 { #category : #'host space - displaying' }
 TBlHostSpace >> maximized [
-
 	^ self explicitRequirement
 ]
 
@@ -160,7 +164,6 @@ TBlHostSpace >> minimize [
 
 { #category : #'host space - displaying' }
 TBlHostSpace >> minimized [
-
 	^ self explicitRequirement
 ]
 

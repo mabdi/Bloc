@@ -62,6 +62,31 @@ BlOSWindowSpace >> eventFetcher [
 	^ eventFetcher
 ]
 
+{ #category : #'window - properties' }
+BlOSWindowSpace >> fullscreen [
+	"Return true if an underlying window is in fullscreen mode,
+	false otherwise"
+	<return: #Boolean>
+
+	^ window fullscreen
+]
+
+{ #category : #'window - properties' }
+BlOSWindowSpace >> fullscreen: aBoolean [
+	"Switch underlying window to fullscreen if true is given
+	and exit fullscreen mode if false is given"
+
+	window fullscreen: aBoolean
+]
+
+{ #category : #'host space - events' }
+BlOSWindowSpace >> generateEvents [
+	"Generate more complex state change events such as window scale event when resolution of the screen changes"
+	
+	self hasScaled
+		ifTrue: [ self enqueueEvent: (BlSpaceScaledEvent new timestamp: self space time now) ]
+]
+
 { #category : #'host space - displaying' }
 BlOSWindowSpace >> hide [
 	window hide
@@ -163,6 +188,26 @@ BlOSWindowSpace >> isVisible [
 ]
 
 { #category : #'host space - displaying' }
+BlOSWindowSpace >> maximize [
+	window maximize
+]
+
+{ #category : #'host space - displaying' }
+BlOSWindowSpace >> maximized [
+	^ window maximized
+]
+
+{ #category : #'host space - displaying' }
+BlOSWindowSpace >> minimize [
+	window minimize
+]
+
+{ #category : #'host space - displaying' }
+BlOSWindowSpace >> minimized [
+	^ window minimized
+]
+
+{ #category : #'host space - displaying' }
 BlOSWindowSpace >> open [
 	window show
 ]
@@ -182,7 +227,7 @@ BlOSWindowSpace >> prepareToRender: aBlSpace onBufferSurface: aBlHostRendererBuf
 	"Prepare host space to a given space on a buffer surface.
 	By default dispatch directly to the renderer"
 	
-	self hasResized
+	self hasScaled
 		ifTrue: [ window validHandle renderer resetResources ].
 	
 	self renderer prepareToRender: aBlSpace
@@ -193,7 +238,7 @@ BlOSWindowSpace >> prepareToRender: aBlSpace onFormSurface: aBlHostRendererFormS
 	"Prepare host space to a given space on a Form surface.
 	By default dispatch directly to the renderer"
 	
-	self hasResized
+	self hasScaled
 		ifTrue: [ window validHandle renderer resetResources ].
 
 	self renderer prepareToRender: aBlSpace
@@ -204,7 +249,7 @@ BlOSWindowSpace >> prepareToRender: aBlSpace onOpenGLSurface: aBlHostRendererOpe
 	"Prepare host space to a given space on an OpenGL surface.
 	By default dispatch directly to the renderer"
 	
-	self hasResized
+	self hasScaled
 		ifTrue: [ aBlHostRendererOpenGLSurface extent: self canvasExtent ].
 	
 	self renderer prepareToRender: aBlSpace
