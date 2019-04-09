@@ -1,5 +1,7 @@
 "
-I am a concrete implementation of a BlHost that allows users to open host bloc spaces within OSWindow windows
+I am a concrete implementation of a BlHost that allows users to open host bloc spaces within OSWindow windows.
+
+OSWindow is an abstraction of different windowing backends, for example SDL2 or Glutin. See my subclasses for available backends
 "
 Class {
 	#name : #BlOSWindowHost,
@@ -8,27 +10,23 @@ Class {
 		'wasRunning',
 		'isRunning'
 	],
-	#category : 'BlocHost-OSWindow-Host'
+	#category : #'BlocHost-OSWindow-Host'
 }
 
-{ #category : #'driver selection' }
-BlOSWindowHost class >> isSupported [
-	^ true
+{ #category : #'instance creation' }
+BlOSWindowHost class >> default [
+	"Pick a specific OSWindow backend from available ones"
+	<return: #BlOSWindowHost>
+
+	^ BlOSWindowHost defaultHostClass new
 ]
 
-{ #category : #'driver selection' }
-BlOSWindowHost class >> label [
-	^ 'OS-Window'
-]
+{ #category : #'instance creation' }
+BlOSWindowHost class >> new [
+	self = BlOSWindowHost
+		ifTrue: [ self error: 'Please use #default instead to pick up a suitable backend' ].
 
-{ #category : #'driver selection' }
-BlOSWindowHost class >> priority [
-	"Return host priority as positive number which influences host order
-	and selection of a default host.
-	Lower value - more likely host becomes a default"
-	<return: #Number>
-	
-	^ 40
+	^ self basicNew initialize
 ]
 
 { #category : #private }
@@ -40,6 +38,7 @@ BlOSWindowHost >> createAttributesFor: aSpace [
 		resizable: aSpace resizable;
 		borderless: aSpace borderless;
 		position: aSpace position;
+		preferableDriver: self preferableDriver;
 		visible: false. "There is a race before opening a window and setting the event handler."
 	^ theAttributes
 ]
@@ -54,6 +53,7 @@ BlOSWindowHost >> createHostSpaceFor: aSpace [
 		description: [ 'Space must not have a host!' ].
 		
 	aHostSpace := self createWindowSpaceFor: aSpace.
+	aHostSpace keyboardKeyTable: self keyboardKeyTable.
 	aHostSpace host: self.
 	aHostSpace space: aSpace.
 	aHostSpace withSpartaRenderer.
@@ -90,6 +90,18 @@ BlOSWindowHost >> isRunning [
 	<return: #Boolean>
 
 	^ isRunning
+]
+
+{ #category : #initialization }
+BlOSWindowHost >> keyboardKeyTable [
+	^ self subclassResponsibility
+]
+
+{ #category : #initialization }
+BlOSWindowHost >> preferableDriver [
+	<return: #OSWindowDriver>
+
+	^ self subclassResponsibility
 ]
 
 { #category : #'host - api' }
