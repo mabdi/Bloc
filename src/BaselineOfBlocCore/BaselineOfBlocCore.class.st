@@ -9,7 +9,7 @@ BaselineOfBlocCore >> baseline: spec [
 	<baseline>
 	spec for: #'common' do: [
 		spec baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.6.4/src' ].
+				spec repository: 'github://feenkcom/gtoolkit-examples:v0.6.5/src' ].
 		spec 
 			package: #Bloc;
 			package: #'BlocHost-Mock' with: [
