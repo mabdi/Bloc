@@ -15,7 +15,6 @@ Class {
 		'root',
 		'resizable',
 		'borderless',
-		'rootStyler',
 		'dirtyAreas',
 		'eventDispatcher',
 		'eventListener',
@@ -226,15 +225,15 @@ BlSpace >> beDirtyArea [
 
 { #category : #'window - properties' }
 BlSpace >> borderless [
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace borderless ]
-		ifNil: [ borderless ]
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace borderless ]
+		ifAbsent: [ borderless ]
 ]
 
 { #category : #'window - properties' }
 BlSpace >> borderless: aBoolean [
 	borderless := aBoolean.
-	 self hostSpace ifNotNil: [ :hw | hw borderless: aBoolean ].
+	 self hostSpaceDo: [ :aHostSpace | aHostSpace borderless: aBoolean ].
 ]
 
 { #category : #'event management' }
@@ -311,14 +310,6 @@ BlSpace >> defaultRootLabel [
 ]
 
 { #category : #initialization }
-BlSpace >> defaultRootStyler [
-	^ self class environment
-		at: #BrRootStyler
-		ifPresent: [ :aStylerClass | aStylerClass on: self root ]
-		ifAbsent: [ BlNullStyler new ]
-]
-
-{ #category : #initialization }
 BlSpace >> defaultTitle [
 	^ ''
 ]
@@ -332,16 +323,15 @@ BlSpace >> deleteDragboard [
 	^ d
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> densityDpi [
 	"Return the screen density expressed as dots-per-inch"
 	<return: #Number>
 
-	self hostSpace
-		ifNotNil: [ :hw | ^ hw densityDpi ].
-
-	"Without actual window we can only guess"
-	^ 96.0
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace densityDpi ]
+		"Without an actual window we can only guess"
+		ifAbsent: [ 96.0 ]
 ]
 
 { #category : #'api - tasks' }
@@ -349,11 +339,11 @@ BlSpace >> dequeueTask: aBlTask [
 	self taskQueue dequeue: aBlTask
 ]
 
-{ #category : #'host - accessing' }
+{ #category : #'host space - accessing' }
 BlSpace >> detachHostSpace [
 	"Detach my current host space if I have one"
 
-	self hostSpaceProperty value: nil
+	hostSpace := nil
 ]
 
 { #category : #accessing }
@@ -497,14 +487,14 @@ BlSpace >> eventRecorder: anEventRecorder [
 	eventRecorder := anEventRecorder
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> extent [
 	<return: #Point>
 
 	^ self windowExtent
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> extent: aNewExtent [
 	self windowExtent: aNewExtent
 ]
@@ -519,33 +509,28 @@ BlSpace >> focusOwner: anElement [
 	focusOwner := anElement
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> focusProcessor [
 	<return: #BlFocusProcessor>
 
 	^ focusProcessor
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> focusProcessor: aFocusProcessor [
 	focusProcessor := aFocusProcessor
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> focused [
 	<return: #Boolean>
 
-	^ self focusedProperty value
+	^ focused
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> focused: aBoolean [
-	self focusedProperty value: aBoolean
-]
-
-{ #category : #'accessing properties' }
-BlSpace >> focusedProperty [
-	^ focused ifNil: [ focused := BlObjectProperty on: self named: #focused default: false ]
+	focused := aBoolean
 ]
 
 { #category : #accessing }
@@ -566,9 +551,9 @@ BlSpace >> fullscreen [
 	false otherwise"
 	<return: #Boolean>
 
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace fullscreen ]
-		ifNil: [ fullscreen ]
+	^ self 
+		hostSpaceDo: [ :aHostSpace | aHostSpace fullscreen ]
+		ifAbsent: [ fullscreen ]
 ]
 
 { #category : #'window - properties' }
@@ -577,10 +562,10 @@ BlSpace >> fullscreen: aBoolean [
 	and exit fullscreen mode if false is given"
 
 	fullscreen := aBoolean.
-	 self hostSpace ifNotNil: [ :aHostSpace | aHostSpace fullscreen: aBoolean ]
+	 self hostSpaceDo: [ :aHostSpace | aHostSpace fullscreen: aBoolean ]
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> gestureProcessor [
 	<return: #BlGestureProcessor>
 
@@ -601,7 +586,7 @@ BlSpace >> hasDirtyAreas [
 	^ self dirtyAreas isNotEmpty
 ]
 
-{ #category : #testing }
+{ #category : #'host space - accessing' }
 BlSpace >> hasHostSpace [
 	"Return true if I have a host space, false otherwise"
 	<return: #Boolean>
@@ -626,7 +611,7 @@ BlSpace >> hasOwner [
 	^ false
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> height [
 	<return: #Number>
 
@@ -638,22 +623,22 @@ BlSpace >> hide [
 	self hostSpace ifNotNil: [ :hw | hw hide ]
 ]
 
-{ #category : #'host - accessing' }
+{ #category : #'host space - accessing' }
 BlSpace >> host [
 	^ host
 ]
 
-{ #category : #'host - accessing' }
+{ #category : #'host space - accessing' }
 BlSpace >> host: aHost [
 	host := aHost
 ]
 
-{ #category : #'host - accessing' }
+{ #category : #'host space - accessing' }
 BlSpace >> hostSpace [
-	^ self hostSpaceProperty value
+	^ hostSpace
 ]
 
-{ #category : #'host - accessing' }
+{ #category : #'host space - accessing' }
 BlSpace >> hostSpace: aHostSpace [
 	"Assign a host space window that will be a source of UI events
 	and will provide a rendering surface on which I will be rendered.
@@ -663,11 +648,11 @@ BlSpace >> hostSpace: aHostSpace [
 		assert: [ aHostSpace isNotNil ]
 		description: [ 'Host space must not be nil!' ].
 
-	self hostSpaceProperty value: aHostSpace.
+	hostSpace := aHostSpace.
 	self hostSpaceChanged.
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'host space - accessing' }
 BlSpace >> hostSpaceChanged [
 	"When host space changed we might want to adapt sizes"
 	self windowExtent: self windowExtent.
@@ -675,9 +660,20 @@ BlSpace >> hostSpaceChanged [
 	self beDirtyArea
 ]
 
-{ #category : #'accessing properties' }
-BlSpace >> hostSpaceProperty [
-	^ hostSpace ifNil: [ hostSpace := BlObjectProperty on: self named: #hostSpace ]
+{ #category : #'host space - accessing' }
+BlSpace >> hostSpaceDo: aBlock [
+	^ self hostSpaceDo: aBlock ifAbsent: [ self ]
+]
+
+{ #category : #'host space - accessing' }
+BlSpace >> hostSpaceDo: aBlock ifAbsent: anAbsentBlock [
+	self hasHostSpace
+		ifFalse: [ ^ anAbsentBlock value ].
+		
+	self hostSpace needsRebuild
+		ifTrue: [ ^ anAbsentBlock value ].
+		
+	^ aBlock value: self hostSpace
 ]
 
 { #category : #initialization }
@@ -710,8 +706,6 @@ BlSpace >> initialize [
 
 	root := self defaultRoot.
 
-	rootStyler := self defaultRootStyler.
-
 	self extent: self defaultExtent.
 	self position: 0@0.
 
@@ -719,6 +713,7 @@ BlSpace >> initialize [
 	self borderless: false.
 	self fullscreen: false.
 	self title: self defaultTitle.
+	self focused: false.
 
 	self updateCursorImage: Cursor normal.
 
@@ -758,14 +753,14 @@ BlSpace >> isVisible [
 		ifFalse: [ false ]
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> keyboardProcessor [
 	<return: #BlKeyboardProcessor>
 
 	^ keyboardProcessor
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> keyboardProcessor: aKeyboardProcessor [
 	keyboardProcessor := aKeyboardProcessor
 ]
@@ -811,14 +806,14 @@ BlSpace >> minimized [
 	^ false
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> mouseProcessor [
 	<return: #BlMouseProcessor>
 
 	^ mouseProcessor
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> mouseProcessor: aMouseProcessor [
 	mouseProcessor := aMouseProcessor
 ]
@@ -834,18 +829,18 @@ BlSpace >> position [
 	"Return window's position in screen coordinates"
 	<return: #Point>
 	
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace position ]
-		ifNil: [ position ]
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace position ]
+		ifAbsent: [ position ]
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> position: aPoint [
 	"Request to change window's position to a given point in screen corrdinates"
 
-	self hasHostSpace
-		ifTrue: [ self hostSpace position: aPoint ]
-		ifFalse: [ self setPosition: aPoint ]
+	self
+		hostSpaceDo: [ :aHostSpace | aHostSpace position: aPoint ]
+		ifAbsent: [ self setPosition: aPoint ]
 ]
 
 { #category : #pulse }
@@ -858,9 +853,6 @@ BlSpace >> processEvents [
 
 	self eventRecorder onPulse.
 	
-	self hasHostSpace
-		ifTrue: [ self hostSpace generateEvents ].
-	
 	self hostSpace fetchedEventsDo: [ :anEvent |
 		"we have to test for existance of the host space before handling each event because
 		it is possible that a space is closed due to an event"
@@ -868,9 +860,12 @@ BlSpace >> processEvents [
 			ifTrue: [
 				self eventRecorder record: anEvent.
 				self eventDispatcher dispatchEvent: anEvent ] ].
-
+	
 	self hasHostSpace
-		ifTrue: [ self mouseProcessor generateEvents ]
+		ifFalse: [ ^ self ].
+	
+	self hostSpace generateEvents.
+	self mouseProcessor generateEvents
 ]
 
 { #category : #pulse }
@@ -931,9 +926,9 @@ BlSpace >> resizable [
 	"Return true if underlying window is resizable, false otherwise"
 	<return: #Boolean>
 
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace resizable ]
-		ifNil: [ resizable ]
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace resizable ]
+		ifAbsent: [ resizable ]
 ]
 
 { #category : #'window - properties' }
@@ -941,7 +936,7 @@ BlSpace >> resizable: aBoolean [
 	"Make underlying window resizable if true is given"
 	
 	resizable := aBoolean.
-	self hostSpace ifNotNil: [ :aHostSpace | aHostSpace resizable: aBoolean ]
+	self hostSpaceDo: [ :aHostSpace | aHostSpace resizable: aBoolean ]
 ]
 
 { #category : #accessing }
@@ -975,10 +970,7 @@ BlSpace >> root: anElement [
 		space: self;
 		size: self extent.
 
-	root := anElement.
-	"Root styler is created for the root element. Since we change root element
-	we must also recreate a styler"
-	rootStyler := self defaultRootStyler
+	root := anElement
 ]
 
 { #category : #accessing }
@@ -987,11 +979,6 @@ BlSpace >> rootDo: aBlock [
 	May be useful for scripting"
 
 	aBlock value: self root
-]
-
-{ #category : #accessing }
-BlSpace >> rootStyler [
-	^ rootStyler
 ]
 
 { #category : #pulse }
@@ -1058,23 +1045,17 @@ BlSpace >> title [
 	"Return window's title as a string"
 	<return: #String>
 
-	^ self titleProperty value
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace title ]
+		ifAbsent: [ title ]
 ]
 
 { #category : #'window - properties' }
 BlSpace >> title: aString [
 	"Change window's title"
 
-	self titleProperty value: aString
-]
-
-{ #category : #'accessing properties' }
-BlSpace >> titleProperty [
-	^ title ifNil: [
-		title := BlDelegateProperty
-			on: self
-			named: #title
-			delegateTo: self hostSpaceProperty ]
+	title := aString.
+	self hostSpaceDo: [ :aHostSpace | aHostSpace title: aString ]
 ]
 
 { #category : #displaying }
@@ -1092,7 +1073,7 @@ BlSpace >> topMostParent [
 	^ self root
 ]
 
-{ #category : #accessing }
+{ #category : #'accessing - processors' }
 BlSpace >> touchProcessor [
 	<return: #BlTouchProcessor>
 
@@ -1120,42 +1101,42 @@ BlSpace >> updateCursorImage: anImage [
 		aHostSpace cursor: anImage ]
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> width [
 	<return: #Number>
 
 	^ self extent x
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> windowExtent [
 	"Return the window size in screen coordinates.
 	This size may differ from the size in pixels on high dpi (retina) screens.
 	Use #extent to get actual pixel size"
 	<return: #Point>
 
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace windowExtent ]
-		ifNil: [ extent ]
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace windowExtent ]
+		ifAbsent: [ extent ]
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> windowExtent: anExtent [
 	"Request to change a window size to aNewExtent.
 	Note, that window size may be different from renderer size on high dpi (retina) displays"
 
-	self hasHostSpace
-		ifTrue: [ self hostSpace windowExtent: anExtent ]
-		ifFalse: [ self setExtent: anExtent ]
+	self
+		hostSpaceDo: [ :aHostSpace | aHostSpace windowExtent: anExtent ]
+		ifAbsent: [ self setExtent: anExtent ]
 ]
 
-{ #category : #accessing }
+{ #category : #'window - properties' }
 BlSpace >> windowScale [
 	"Return a scaling factor from space to window coordinates.
 	On high dpi (retina) displays scaling factor is > 1"
 	<return: #Point>
 
-	^ self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace scaleFactor ]
-		ifNil: [ 1.0 asPoint ]
+	^ self
+		hostSpaceDo: [ :aHostSpace | aHostSpace scaleFactor ]
+		ifAbsent: [ 1.0 asPoint ]
 ]

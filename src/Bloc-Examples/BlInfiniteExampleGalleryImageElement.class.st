@@ -8,7 +8,7 @@ Class {
 		'itemElement',
 		'bitmap'
 	],
-	#category : #'Bloc-Examples-Infinite'
+	#category : 'Bloc-Examples-Infinite'
 }
 
 { #category : #layout }
