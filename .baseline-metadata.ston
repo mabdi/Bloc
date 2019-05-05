@@ -1,1 +1,1 @@
-{	"repositories" : {		"github://feenkcom/oswindow-glutin/src" : "v0.4.4",		"github://feenkcom/Sparta/src" : "v0.6.1",		"github://feenkcom/gtoolkit-examples/src" : "v0.6.6",		"github://sbragagnolo/taskit" : "v1.0.1"	}}
+{	"repositories" : {		"github://feenkcom/oswindow-glutin/src" : "v0.4.5",		"github://feenkcom/Sparta/src" : "v0.6.2",		"github://feenkcom/gtoolkit-examples/src" : "v0.6.7",		"github://sbragagnolo/taskit" : "v1.0.1"	}}
