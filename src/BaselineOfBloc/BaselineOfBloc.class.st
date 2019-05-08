@@ -27,17 +27,17 @@ BaselineOfBloc >> baseline: spec [
 		spec postLoadDoIt: #'postLoadBloc:'.
 		spec 
 			baseline: 'BlocCore' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.6.16/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'BlocLayout' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.6.16/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'Sparta' with: [
-				spec repository: 'github://feenkcom/Sparta:v0.6.2/src' ];
+				spec repository: 'github://feenkcom/Sparta/src' ];
 			baseline: 'TaskIt' with: [
 				spec repository: 'github://sbragagnolo/taskit:v1.0.1' ];
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.6.7/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-examples/src' ];
 			baseline: 'OSWindowGlutin' with: [
-				spec repository: 'github://feenkcom/oswindow-glutin:v0.4.6/src' ].
+				spec repository: 'github://feenkcom/oswindow-glutin/src' ].
 		spec 
 			package: #'Bloc-Geometry' with: [
 				spec requires: #(#BlocCore ). ];
@@ -68,11 +68,9 @@ BaselineOfBloc >> baseline: spec [
 			package: #'BlocHost-Morphic' with: [
 				spec requires: #(#BlocCore ). ];
 			package: #'BlocHost-OSWindow' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta' ). ];
-			package: #'BlocHost-OSWindow-SDL2' with: [
-				spec requires: #('BlocHost-OSWindow' ). ];
+				spec requires: #(#BlocCore 'Bloc-Sparta'). ];
 			package: #'BlocHost-OSWindow-Glutin' with: [
-				spec requires: #('BlocHost-OSWindow' #OSWindowGlutin ). ];
+				spec requires: #('BlocHost-OSWindow' OSWindowGlutin). ];
 			package: #'Bloc-Extensions' with: [
 				spec requires: #('BlocCore' 'Bloc-Sparta' 'Bloc-Animation' 'Bloc-DevTool' ). ];
 			package: 'Bloc-TaskIt' with: [

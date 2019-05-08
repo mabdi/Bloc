@@ -50,8 +50,18 @@ BlKeyCombination class >> delete [
 ]
 
 { #category : #'instance creation' }
+BlKeyCombination class >> end [
+	^ self builder end build
+]
+
+{ #category : #'instance creation' }
 BlKeyCombination class >> escape [
 	^ self builder escape build
+]
+
+{ #category : #'instance creation' }
+BlKeyCombination class >> home [
+	^ self builder home build
 ]
 
 { #category : #'instance creation' }
@@ -111,6 +121,14 @@ BlKeyCombination class >> primaryG [
 ]
 
 { #category : #'instance creation' }
+BlKeyCombination class >> primaryL [
+	"primary (Command/Control) + L"
+	<return: #BlKeyCombination>
+
+	^ self builder primary l build
+]
+
+{ #category : #'instance creation' }
 BlKeyCombination class >> primaryM [
 	"primary (Command/Control) + M"
 	<return: #BlKeyCombination>
@@ -140,6 +158,14 @@ BlKeyCombination class >> primaryR [
 	<return: #BlKeyCombination>
 
 	^ self builder primary r build
+]
+
+{ #category : #'instance creation' }
+BlKeyCombination class >> primaryReturn [
+	"primary (Command/Control) + Return"
+	<return: #BlKeyCombination>
+
+	^ self builder primary return build
 ]
 
 { #category : #'instance creation' }
