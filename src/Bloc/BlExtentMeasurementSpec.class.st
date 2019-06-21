@@ -58,6 +58,11 @@ BlExtentMeasurementSpec >> isExact [
 	^ self widthSpec isExact and: [ self heightSpec isExact ]
 ]
 
+{ #category : #geometry }
+BlExtentMeasurementSpec >> min: aMinSize max: aMaxSize [
+	^ (self widthSpec min: aMinSize x max: aMaxSize x) @ (self heightSpec min: aMinSize y max: aMaxSize y)
+]
+
 { #category : #printing }
 BlExtentMeasurementSpec >> printOn: aStream [
 	aStream nextPutAll: 'width: ('.
@@ -65,6 +70,11 @@ BlExtentMeasurementSpec >> printOn: aStream [
 	aStream nextPutAll: ') height: ('.
 	aStream nextPutAll: (self heightSpec asString).
 	aStream nextPutAll: ')'.
+]
+
+{ #category : #accessing }
+BlExtentMeasurementSpec >> seamlessDefaultTransferStrategy [ 
+	^SeamlessTransferStrategy defaultByValue
 ]
 
 { #category : #geometry }

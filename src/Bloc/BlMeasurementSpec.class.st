@@ -100,6 +100,11 @@ BlMeasurementSpec >> isUnspecified [
 	^ self mode isUnspecified
 ]
 
+{ #category : #geometry }
+BlMeasurementSpec >> min: aMinSize max: aMaxSize [
+	^ self mode size: self size min: aMinSize max: aMaxSize
+]
+
 { #category : #accessing }
 BlMeasurementSpec >> mode [
 	^ mode
@@ -113,6 +118,11 @@ BlMeasurementSpec >> mode: aMeasurementSpec [
 { #category : #printing }
 BlMeasurementSpec >> printOn: aStream [
 	self mode printOn: aStream size: self size
+]
+
+{ #category : #accessing }
+BlMeasurementSpec >> seamlessDefaultTransferStrategy [ 
+	^SeamlessTransferStrategy defaultByValue
 ]
 
 { #category : #accessing }
