@@ -4,6 +4,10 @@ Class {
 	#category : #'BlocHost-Morphic-World'
 }
 
+{ #category : #converting }
+BlMorphicWorldDisplayScreen >> beDisplay [
+]
+
 { #category : #testing }
 BlMorphicWorldDisplayScreen >> isFullscreen [
 	^ false
