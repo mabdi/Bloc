@@ -669,11 +669,11 @@ BlSpace >> hostSpaceDo: aBlock [
 BlSpace >> hostSpaceDo: aBlock ifAbsent: anAbsentBlock [
 	self hasHostSpace
 		ifFalse: [ ^ anAbsentBlock value ].
-		
+
 	self hostSpace needsRebuild
 		ifTrue: [ ^ anAbsentBlock value ].
 		
-	^ aBlock value: self hostSpace
+	^ aBlock cull: self hostSpace
 ]
 
 { #category : #initialization }
@@ -745,6 +745,15 @@ BlSpace >> isLayoutRequested [
 	<return: #Boolean>
 	
 	^ self root isLayoutRequested
+]
+
+{ #category : #testing }
+BlSpace >> isOpened [
+	"Return true if the space was shown (by sending #show message), false otherwise.
+	Please note, that an opened space can be hidden which does not influence the result of #isOpened"
+	<return: #Boolean>
+
+	^ BlUniverse default spaceManager hasSpace: self
 ]
 
 { #category : #testing }
@@ -855,31 +864,6 @@ BlSpace >> printOn: aStream [
 ]
 
 { #category : #pulse }
-BlSpace >> processEvents [
-	"Process events enqueued by host space and dispatch them to the scene graph"
-
-	self
-		assert: [ self hasHostSpace ]
-		description: [ 'Events can only be processed if I have a host space' ].
-
-	self eventRecorder onPulse.
-	
-	self hostSpace fetchedEventsDo: [ :anEvent |
-		"we have to test for existance of the host space before handling each event because
-		it is possible that a space is closed due to an event"
-		self hasHostSpace
-			ifTrue: [
-				self eventRecorder record: anEvent.
-				self eventDispatcher dispatchEvent: anEvent ] ].
-	
-	self hasHostSpace
-		ifFalse: [ ^ self ].
-	
-	self hostSpace generateEvents.
-	self mouseProcessor generateEvents
-]
-
-{ #category : #pulse }
 BlSpace >> processPulse [
 	self ensureSession.
 
@@ -901,6 +885,13 @@ BlSpace >> pulseRequested [
 	^ nextPulseRequested
 ]
 
+{ #category : #'api - adding' }
+BlSpace >> removeChild: anElement [
+	"Remove a given element from the space root"
+	
+	self root removeChild: anElement
+]
+
 { #category : #pulse }
 BlSpace >> render [
 	"Render this space in my host window if it is assigned, otherwise do nothing"
@@ -909,8 +900,8 @@ BlSpace >> render [
 		assert: [ self hasDirtyAreas ]
 		description: [ 'I must have dirty areas in order to be rendered' ].
 
-	self hostSpace
-		ifNotNil: [ :aHostSpace | aHostSpace render: self ]
+	self
+		hostSpaceDo: [ :aHostSpace | aHostSpace render: self ]
 ]
 
 { #category : #'focus managing' }
@@ -1024,12 +1015,7 @@ BlSpace >> show [
 	"Open me in a window and show it to the user"
 
 	"delegate showing work to the Universe"
-	BlUniverse default showSpaceWindow: self.
-	
-	"Notify root element that it is now visible to the user"
-	root dispatchAddedToSceneGraph.
-	
-	self requestNextPulse.
+	BlUniverse default showSpaceWindow: self
 ]
 
 { #category : #'api - tasks' }

@@ -26,12 +26,44 @@ Class {
 	#category : #'Bloc-TaskIt-Worker'
 }
 
+{ #category : #accessing }
+BlVariableSizeWorkerPool class >> defaultName [
+	"Return a default worker pool name"
+	<return: #String>
+	^ self subclassResponsibility
+]
+
+{ #category : #accessing }
+BlVariableSizeWorkerPool class >> defaultPoolSize [
+	"Return a default worker pool size"
+	<return: #Integer>
+	^ self subclassResponsibility
+]
+
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> future: aValuable [
+	"Schedule the supplied valuable with maxPoolSize worker pools"
+	^ self future: aValuable maxPoolSize: self defaultPoolSize
+]
+
 { #category : #scheduling }
 BlVariableSizeWorkerPool class >> future: aValuable maxPoolSize: maxPoolSize [
 	"Schedule the supplied valuable with maxPoolSize worker pools"
 
-	^self subclassResponsibility 
+	^ (self withPoolSize: maxPoolSize) future: aValuable.
+]
 
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> future: aValuable named: aValuableName [
+	"Schedule the supplied valuable with maxPoolSize worker pools"
+	^ self future: aValuable named: aValuableName maxPoolSize: self defaultPoolSize
+]
+
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> future: aValuable named: aString maxPoolSize: maxPoolSize [
+	"Schedule the supplied valuable with maxPoolSize worker pools"
+
+	^ (self withPoolSize: maxPoolSize) future: aValuable named: aString.
 ]
 
 { #category : #'class initialization' }
@@ -54,7 +86,15 @@ BlVariableSizeWorkerPool class >> isFree [
 BlVariableSizeWorkerPool class >> schedule: aValuable maxPoolSize: maxPoolSize [
 	"Schedule the supplied valuable with maxPoolSize worker pools"
 
-	^self subclassResponsibility 
+	^ (self withPoolSize: maxPoolSize) schedule: aValuable.
+
+]
+
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> schedule: aValuable named: aString maxPoolSize: maxPoolSize [
+	"Schedule the supplied valuable named aValuableName with maxPoolSize worker pools"
+
+	^ (self withPoolSize: maxPoolSize) schedule: aValuable named: aString.
 
 ]
 
@@ -80,6 +120,7 @@ BlVariableSizeWorkerPool class >> withPoolSize: maxPoolSize [
 	^workerPools at: maxPoolSize ifAbsentPut: [ 
 		self new
 			poolMaxSize: maxPoolSize;
+			name: self defaultName;
 			start;
 			yourself ]
 ]
@@ -90,8 +131,81 @@ BlVariableSizeWorkerPool class >> workerPools [
 	^workerPools
 ]
 
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> future: aValuable [
+	<return: #TKTFuture>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	^ TKTConfiguration 
+		processProvider: self processProvider 
+		during: [ super future: aTask ].
+]
+
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> future: aValuable named: aTaskName [
+	<return: #TKTFuture>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	aTask name: aTaskName.
+	^ self future: aTask
+]
+
+{ #category : #initialization }
+BlVariableSizeWorkerPool >> initialize [
+	super initialize.
+	self poolMaxSize: self class defaultPoolSize.
+	self name: self class defaultName, '-', self identityHash asString.
+]
+
 { #category : #testing }
 BlVariableSizeWorkerPool >> isFree [
 
 	^ taskQueue isEmpty and: [ workers allSatisfy: [ :each | each isFree ] ]
+]
+
+{ #category : #printing }
+BlVariableSizeWorkerPool >> printOn: aStream [
+	| freeWorkers | 
+	freeWorkers := self privateFreeWorkers.
+	aStream
+		nextPutAll: self class name;
+		nextPutAll: '(';
+		nextPutAll: 'name:';
+		nextPutAll: name;
+		nextPutAll: ', queueSize: ';
+		print: taskQueue size;
+		nextPutAll: ', busyWorkers: ';
+		print: workers size - freeWorkers size;
+		nextPutAll: ', freeWorkers: ';
+		print: freeWorkers size;
+		nextPutAll: ', poolMaxSize: ';
+		print: poolMaxSize;
+		nextPutAll: ')'
+]
+
+{ #category : #accessing }
+BlVariableSizeWorkerPool >> processProvider [
+	<return: #TKTTaskItProcessProvider>
+	^ self subclassResponsibility
+]
+
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> schedule: aValuable [
+	<return: #BlTaskItNamedTask>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	TKTConfiguration 
+		processProvider: self processProvider 
+		during: [ super schedule: aTask ].
+	^ aTask
+]
+
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> schedule: aValuable named: aTaskName [
+	<return: #BlTaskItNamedTask>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	aTask name: aTaskName.
+	self schedule: aTask.
+	^ aTask
 ]

@@ -108,7 +108,7 @@ BlUniverse >> closeSpaceWindow: aSpace [
 	"Send space closed event.
 	Note: a new space may be spawned as a reaction to the event, that is why
 	we send it before stopping host and universe"
-	aSpace dispatchEvent: (BlSpaceClosedEvent new space: self).
+	aSpace dispatchEvent: (BlSpaceClosedEvent new space: aSpace).
 	
 	(self spaceManager spaces anySatisfy: [ :eachSpace | eachSpace host == aSpace host ])
 		ifFalse: [ aSpace host isRunning ifTrue: [ aSpace host stop ] ].
@@ -282,6 +282,12 @@ BlUniverse >> showSpaceWindow: aSpace [
 	"Note: we should send shown event after everything else is done, because
 	theoretically, that only space could be closed as a reaction to the event"
 	aSpace dispatchEvent: (BlSpaceShownEvent new space: self).
+	
+	"Notify root element that it is now visible to the user"
+	aSpace root space: aSpace.
+	aSpace root dispatchAddedToSceneGraph.
+	
+	self requestNextPulse.
 ]
 
 { #category : #accessing }
