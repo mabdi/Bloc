@@ -58,7 +58,7 @@ BlSpartaRenderer class >> pickCanvasBuilderClass [
 ]
 
 { #category : #'renderer - rendering' }
-BlSpartaRenderer >> doRender: aSpace [
+BlSpartaRenderer >> doRender: aSpace dirtyAreas: aCollectionOfRectangles [
 	| theDirtyAreas |
 	
 	self
@@ -70,7 +70,7 @@ BlSpartaRenderer >> doRender: aSpace [
 		description: [ 'Sparta Canvas must be valid at this point!' ].
 	
 	"collect the dirty area to be updated"
-	theDirtyAreas := aSpace dirtyAreas 
+	theDirtyAreas := aCollectionOfRectangles 
 		collect: [ :each | each intersect: (0@0 extent: windowExtent) ifNone: [ nil ] ]
 		thenSelect: [ :each | each isNotNil and: [ each hasPositiveExtent ] ].
 
@@ -82,6 +82,7 @@ BlSpartaRenderer >> doRender: aSpace [
 			aSpace fullDrawOn: spartaCanvas
 		].
 	].
+
 	spartaCanvas flush.
 
 	self presentAreas: theDirtyAreas
