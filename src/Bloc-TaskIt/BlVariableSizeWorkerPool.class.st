@@ -27,6 +27,11 @@ Class {
 }
 
 { #category : #accessing }
+BlVariableSizeWorkerPool class >> default [
+	^ self withPoolSize: self defaultPoolSize
+]
+
+{ #category : #accessing }
 BlVariableSizeWorkerPool class >> defaultName [
 	"Return a default worker pool name"
 	<return: #String>
@@ -83,6 +88,13 @@ BlVariableSizeWorkerPool class >> isFree [
 ]
 
 { #category : #scheduling }
+BlVariableSizeWorkerPool class >> schedule: aValuable [
+	"Schedule the supplied valuable with maxPoolSize worker pools"
+
+	^ self schedule: aValuable maxPoolSize: self defaultPoolSize
+]
+
+{ #category : #scheduling }
 BlVariableSizeWorkerPool class >> schedule: aValuable maxPoolSize: maxPoolSize [
 	"Schedule the supplied valuable with maxPoolSize worker pools"
 
@@ -91,10 +103,33 @@ BlVariableSizeWorkerPool class >> schedule: aValuable maxPoolSize: maxPoolSize [
 ]
 
 { #category : #scheduling }
+BlVariableSizeWorkerPool class >> schedule: aValuable named: aString [
+	"Schedule the supplied valuable named aValuableName with maxPoolSize worker pools"
+
+	^ self schedule: aValuable named: aString maxPoolSize: self defaultPoolSize
+]
+
+{ #category : #scheduling }
 BlVariableSizeWorkerPool class >> schedule: aValuable named: aString maxPoolSize: maxPoolSize [
 	"Schedule the supplied valuable named aValuableName with maxPoolSize worker pools"
 
 	^ (self withPoolSize: maxPoolSize) schedule: aValuable named: aString.
+
+]
+
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> schedule: aValuable named: aString timeout: aTimeout maxPoolSize: maxPoolSize [
+	"Schedule the supplied valuable named aValuableName with maxPoolSize worker pools"
+
+	^ (self withPoolSize: maxPoolSize) schedule: aValuable named: aString timeout: aTimeout.
+
+]
+
+{ #category : #scheduling }
+BlVariableSizeWorkerPool class >> schedule: aValuable timeout: aTimeout maxPoolSize: maxPoolSize [
+	"Schedule the supplied valuable with maxPoolSize worker pools"
+
+	^ (self withPoolSize: maxPoolSize) schedule: aValuable timeout: aTimeout.
 
 ]
 
@@ -111,6 +146,14 @@ BlVariableSizeWorkerPool class >> stopAll [
 		(workerPools at: key) stop.
 		workerPools removeKey: key ].
 
+]
+
+{ #category : #managing }
+BlVariableSizeWorkerPool class >> stopAllSubclasses [
+	<script>
+	"Stop the all worker pools and remove the reference to it"
+
+	self subclassesDo: #stopAll
 ]
 
 { #category : #accessing }
@@ -191,9 +234,9 @@ BlVariableSizeWorkerPool >> processProvider [
 
 { #category : #schedulling }
 BlVariableSizeWorkerPool >> schedule: aValuable [
-	<return: #BlTaskItNamedTask>
+	<return: #BlTktNamedTask>
 	| aTask |
-	aTask := aValuable asLoggingTask asNamedTask.
+	aTask := aValuable asTask.
 	TKTConfiguration 
 		processProvider: self processProvider 
 		during: [ super schedule: aTask ].
@@ -202,10 +245,31 @@ BlVariableSizeWorkerPool >> schedule: aValuable [
 
 { #category : #schedulling }
 BlVariableSizeWorkerPool >> schedule: aValuable named: aTaskName [
-	<return: #BlTaskItNamedTask>
+	<return: #BlTktNamedTask>
 	| aTask |
 	aTask := aValuable asLoggingTask asNamedTask.
 	aTask name: aTaskName.
 	self schedule: aTask.
+	^ aTask
+]
+
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> schedule: aValuable named: aTaskName timeout: aTimeout [
+	<return: #BlTktNamedTask>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	aTask name: aTaskName.
+	self schedule: aTask timeout: aTimeout.
+	^ aTask
+]
+
+{ #category : #schedulling }
+BlVariableSizeWorkerPool >> schedule: aValuable timeout: aTimeout [
+	<return: #BlTktNamedTask>
+	| aTask |
+	aTask := aValuable asLoggingTask asNamedTask.
+	TKTConfiguration 
+		processProvider: self processProvider 
+		during: [ super schedule: aTask timeout: aTimeout ].
 	^ aTask
 ]

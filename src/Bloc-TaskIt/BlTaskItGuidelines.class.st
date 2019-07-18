@@ -91,8 +91,8 @@ BlTaskItGuidelines >> basicHousekeepingWorkerPool [
 
 { #category : #'examples - schedule' }
 BlTaskItGuidelines >> executeScheduledCounterTaskAsAsyncUI [
-	<noTest>
 	<gtExample>
+	<noTest>
 	| aWorkerPool |
 	aWorkerPool := self scheduleCounterTaskAsAsyncUI.
 	aWorkerPool schedule: self signalSemaphoreAction.
@@ -186,14 +186,17 @@ BlTaskItGuidelines >> initialize [
 	semaphore := Semaphore new.
 ]
 
-{ #category : #'examples - schedule' }
+{ #category : #'examples - schedule with timeout' }
 BlTaskItGuidelines >> scheduleCounterTaskAsAsyncUI [
-	<noTest>
 	<gtExample>
+	<noTest>
 	| aWorkerPool aTask aNamedTask |
 	aWorkerPool := self asyncUIWorkerPoolWithOneWorker.
-	aTask := self incrementalCounterTask.
-	aNamedTask := aWorkerPool schedule: aTask named: self incrementalCounterTaskName.
+	aTask := [ [ self waitingIncrementCounter ] 
+		on: TKTCancelledTaskException 
+		do: [ :anException | self addToCollection: anException. self signalSemaphore ] ] asTask.
+	aNamedTask := aWorkerPool schedule: aTask named: self incrementalCounterTaskName timeout: 1 seconds.
+	self waitForSemaphoreSignal.
 	"Task configuration"
 	self assert: aTask ~= aNamedTask.
 	self assert: aNamedTask task equals: aTask.
@@ -208,7 +211,6 @@ BlTaskItGuidelines >> scheduleCounterTaskAsAsyncUI [
 
 { #category : #'examples - schedule' }
 BlTaskItGuidelines >> scheduleCounterTaskAsHousekeeping [
-	<noTest>
 	<gtExample>
 	| aWorkerPool aTask aNamedTask |
 	aWorkerPool := self housekeepingWorkerPoolWithOneWorker.
