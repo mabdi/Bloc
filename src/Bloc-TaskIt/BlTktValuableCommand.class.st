@@ -4,7 +4,7 @@ Class {
 	#instVars : [
 		'valuable'
 	],
-	#category : #'Bloc-TaskIt-New Implementation'
+	#category : #'Bloc-TaskIt-Commands'
 }
 
 { #category : #defaults }
@@ -13,16 +13,15 @@ BlTktValuableCommand >> defaultValuable [
 ]
 
 { #category : #initialization }
+BlTktValuableCommand >> ensureName [
+	name ifNil: [ self name: self valuable printString ]
+]
+
+{ #category : #initialization }
 BlTktValuableCommand >> initialize [
 	super initialize.
 	self valuable: self defaultValuable.
 	
-]
-
-{ #category : #accessing }
-BlTktValuableCommand >> name [
-	<return: #String>
-	^ self valuable printString
 ]
 
 { #category : #accessing }
@@ -35,5 +34,6 @@ BlTktValuableCommand >> valuable: aValuable [
 	self
 		assert: [ aValuable isNotNil ] 
 		description: [ 'Valuable must be non-nil' ].
-	valuable := aValuable
+	valuable := aValuable.
+	self ensureName.
 ]

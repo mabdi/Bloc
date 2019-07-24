@@ -5,17 +5,12 @@ Class {
 		'notifications',
 		'isSuspendRequested'
 	],
-	#category : #'Bloc-TaskIt-Tasks'
+	#category : #'Bloc-TaskIt-! Obsolete'
 }
 
 { #category : #converting }
 BlTktNotifyingTask >> asNotifyingTask [
 	^ self
-]
-
-{ #category : #actions }
-BlTktNotifyingTask >> cancelRequest [
-	self suspendRequest
 ]
 
 { #category : #initialization }
@@ -39,14 +34,14 @@ BlTktNotifyingTask >> onNotification: aNotificationClass enqueue: aCallback in: 
 			aNotification resume ].
 ]
 
-{ #category : #executing }
-BlTktNotifyingTask >> scheduleTaskExecutionFor: aRunner [
-	^ self configureTaskExecution: BlTktNotifyingTaskExecution new with: aRunner
-]
-
 { #category : #actions }
 BlTktNotifyingTask >> suspendRequest [
 	isSuspendRequested := true
+]
+
+{ #category : #actions }
+BlTktNotifyingTask >> terminationRequested [
+	self suspendRequest
 ]
 
 { #category : #executing }

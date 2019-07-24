@@ -1,6 +1,6 @@
 Class {
 	#name : #BlRollingLinearGradientPaintCommand,
-	#superclass : #BlCommand,
+	#superclass : #BlTktCommand,
 	#instVars : [
 		'step',
 		'stop',
@@ -8,11 +8,6 @@ Class {
 	],
 	#category : #'Bloc-TaskIt-Commands'
 }
-
-{ #category : #'api - execution' }
-BlRollingLinearGradientPaintCommand >> cancelRequest [
-	"I am a fast command"
-]
 
 { #category : #'api - execution' }
 BlRollingLinearGradientPaintCommand >> execute [
@@ -41,15 +36,8 @@ BlRollingLinearGradientPaintCommand >> newGradientBackgroundAt: aStop [
 ]
 
 { #category : #'api - execution' }
-BlRollingLinearGradientPaintCommand >> result [
+BlRollingLinearGradientPaintCommand >> resultObsolete [
 	"Return a command execution result"
 	<return: #Object>
 	^ paint
-]
-
-{ #category : #'api - testing' }
-BlRollingLinearGradientPaintCommand >> wasCanceled [
-	"Answer whether an execution was canceled"
-	<return: #Boolean>
-	^ false
 ]

@@ -1,6 +1,6 @@
 Class {
 	#name : #BlNullCommand,
-	#superclass : #BlCommand,
+	#superclass : #BlTktProtoCommand,
 	#classInstVars : [
 		'uniqueInstance'
 	],
@@ -22,26 +22,14 @@ BlNullCommand class >> uniqueInstance [
 	^ uniqueInstance ifNil: [ uniqueInstance := self new ]
 ]
 
-{ #category : #'api - execution' }
-BlNullCommand >> cancelRequest [
-	"I silently ignore the cancel request as I do not execute anything."
-]
-
 { #category : #execution }
 BlNullCommand >> execute [
 	self error: 'You should define what to execute in advance'
 ]
 
-{ #category : #execution }
-BlNullCommand >> requestTermination [
-	self error: 'You should define what to execute in advance'
-]
-
-{ #category : #accessing }
-BlNullCommand >> result [
-	"Return a command execution result"
-	<return: #Object>
-	^ nil
+{ #category : #'api - execution' }
+BlNullCommand >> terminationRequested [
+	"I silently ignore the cancel request as I do not execute anything."
 ]
 
 { #category : #'api - testing' }

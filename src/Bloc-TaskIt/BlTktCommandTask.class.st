@@ -6,7 +6,7 @@ Class {
 	#instVars : [
 		'command'
 	],
-	#category : #'Bloc-TaskIt-New Implementation'
+	#category : #'Bloc-TaskIt-TaskIt Tasks'
 }
 
 { #category : #accessing }
@@ -66,6 +66,7 @@ BlTktCommandTask >> value [
 		ifNil: [ '' ]
 		ifNotNil: [ anOldNameOrNil asString ].
 	aTaskName := 'Task: ''', self name, ''' in ' , aTempName.
+	anActiveProcess task: self.
 	anActiveProcess name: aTaskName.
 	aResult := self command value.
 	anActiveProcess name: anOldNameOrNil.

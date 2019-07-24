@@ -1,14 +1,14 @@
 Class {
 	#name : #BlEnqueuedTaskItAction,
-	#superclass : #BlTaskItTask,
+	#superclass : #BlElementTask,
 	#instVars : [
 		'action',
-		'name',
 		'resultCallbacks',
 		'exceptionCallbacks',
-		'element'
+		'element',
+		'name'
 	],
-	#category : #'Bloc-TaskIt-Tasks'
+	#category : #'Bloc-TaskIt-Element Tasks'
 }
 
 { #category : #accessing }
@@ -110,5 +110,10 @@ BlEnqueuedTaskItAction >> run [
 
 { #category : #'api - running' }
 BlEnqueuedTaskItAction >> runFuture [
-	^ BlAsyncUIWorkerPool future: self futureAction named: self name
+	<return: #TKTFuture>
+	| aCommand |
+	aCommand := self futureAction asBlTktCommand.
+	self name ifNotNil: [ aCommand name: self name].
+	self element ifNotNil: [ aCommand invocatedByElement: self element ].
+	^ BlTktUIWorkerPool default future: aCommand.
 ]
