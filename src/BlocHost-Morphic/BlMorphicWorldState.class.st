@@ -37,13 +37,16 @@ BlMorphicWorldState >> displayWorld: aWorld submorphs: submorphs [
 ]
 
 { #category : #'update cycle' }
-BlMorphicWorldState >> doOneCycleFor: aWorld [
-	BlUniverse default pulseLoop firePulse
+BlMorphicWorldState >> doOneCycleFor: aWorld [	
+	self doOneCycleNowFor: aWorld
 ]
 
 { #category : #'update cycle' }
 BlMorphicWorldState >> doOneCycleNowFor: aWorld [
-	BlUniverse default pulseLoop firePulse
+	self element isAttachedToSceneGraph
+		ifTrue: [
+			self element space host universe pulse.
+			10 milliSeconds wait ]
 ]
 
 { #category : #accessing }
@@ -54,6 +57,13 @@ BlMorphicWorldState >> element [
 { #category : #accessing }
 BlMorphicWorldState >> element: anObject [
 	element := anObject
+]
+
+{ #category : #initialization }
+BlMorphicWorldState >> initialize [
+	super initialize.
+	
+	self currentCursor: Cursor normal
 ]
 
 { #category : #canvas }
