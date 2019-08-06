@@ -25,7 +25,7 @@ BlGlutinHostSpace >> canvasExtent [
 
 { #category : #'host space - displaying' }
 BlGlutinHostSpace >> close [
-	window destroy
+	window eventsLoop closeWindow: window
 ]
 
 { #category : #'event - handling' }
@@ -396,7 +396,8 @@ BlGlutinHostSpace >> visitWindowResizedEvent: anEvent [
 		timestamp: DateAndTime now;
 		yourself.
 
-	self enqueueEvent: aBlocEvent
+	self enqueueEvent: aBlocEvent.
+	self universe pulse
 ]
 
 { #category : #accessing }

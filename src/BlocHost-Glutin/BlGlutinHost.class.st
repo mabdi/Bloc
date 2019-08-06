@@ -45,9 +45,9 @@ BlGlutinHost class >> forceResumeOfUIProcess: aProcess [
 ]
 
 { #category : #'api - ui process' }
-BlGlutinHost class >> forceStartNewUIProcess [	
+BlGlutinHost class >> forceStartNewUIProcess [
 	UIProcess := [
-		[			
+		[
 			BlParallelUniverse glutin pulse.
 			2 milliSeconds wait
 		] repeat.
@@ -122,10 +122,6 @@ BlGlutinHost >> createHostSpaceFor: aSpace [
 		description: [ 'Space must not have a host!' ].
 	
 	aHostSpace := self createWindowSpaceFor: aSpace.
-	aHostSpace universe: self universe.
-	aHostSpace host: self.
-	aHostSpace space: aSpace.
-	aHostSpace withSpartaRenderer.
 
 	aSpace hostSpace: aHostSpace
 ]
@@ -149,13 +145,16 @@ BlGlutinHost >> createWindowSpaceFor: aSpace [
 			withResizable: aSpace resizable;
 			withMaximized: aSpace maximized.
 		
-		windowedContext := GlutinWindowedContext
-			create: GlutinEventsFetcher default eventsLoop
-			windowBuilder: windowBuilder.
+		windowedContext := GlutinEventsFetcher default eventsLoop createWindow: windowBuilder.
 		
 		aHostSpace := BlGlutinHostSpace new.
 		aHostSpace window: windowedContext.
-
+		
+		aHostSpace universe: self universe.
+		aHostSpace host: self.
+		aHostSpace space: aSpace.
+		aHostSpace withSpartaRenderer.
+		
 		self registerHostSpace: aHostSpace ].
 
 	^ aHostSpace
@@ -217,8 +216,7 @@ BlGlutinHost >> processGlutinEvent: aGlutinEvent [
 
 { #category : #initialize }
 BlGlutinHost >> registerHostSpace: aHostSpace [
-	self spaceRegistry at: aHostSpace window id put: aHostSpace.
-	GlutinWindowsRegistry default registerWindow: aHostSpace window
+	self spaceRegistry at: aHostSpace window id put: aHostSpace
 ]
 
 { #category : #private }
@@ -237,7 +235,10 @@ BlGlutinHost >> start [
 	
 	self class forceStartNewUIProcess.
 
-	GlutinEventsFetcher default eventHandlers add: EventsSensor.
+	GlutinEventsFetcher default eventHandlers addAll: {
+		BlGlutinUserInterruptHandler new.
+		EventsSensor }.
+
 	GlutinEventsFetcher install
 ]
 
@@ -260,15 +261,14 @@ BlGlutinHost >> supportsOpenGLSurface [
 	"Return true if this host can work with OpenGL surface, false otherwise"
 	<return: #Boolean>
 	
-	^ false
+	^ OSPlatform current isWindows not
 ]
 
 { #category : #initialize }
 BlGlutinHost >> unregisterHostSpace: aHostSpace [
 	self spaceRegistry
 		removeKey: aHostSpace window id
-		ifAbsent: [  ].
-	GlutinWindowsRegistry default unregisterWindow: aHostSpace window
+		ifAbsent: [  ]
 ]
 
 { #category : #'event - handling' }

@@ -9,13 +9,8 @@ BlockClosure >> asBlTktCommand [
 ]
 
 { #category : #'*Bloc-TaskIt' }
-BlockClosure >> asLoggingTask [ 
-	"Answer the receiver as a task that will log its execution"
-
-	^BlLoggingTask new 
-		valuable: self;
-		callingMethod: thisContext sender method asRingDefinition;
-		yourself
+BlockClosure >> asBlTktTerminableCommand [
+	^ BlTktTerminableCommand new command: self asBlTktCommand
 ]
 
 { #category : #'*Bloc-TaskIt' }

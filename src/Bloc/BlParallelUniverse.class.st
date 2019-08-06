@@ -10,7 +10,9 @@ Class {
 		'deferredActions',
 		'eventDispatcher',
 		'hostClass',
-		'spaceManager'
+		'spaceManager',
+		'pulsingStateMutex',
+		'isPulsing'
 	],
 	#classVars : [
 		'Universes'
@@ -116,7 +118,7 @@ BlParallelUniverse >> defaultEventListener [
 	^ BlUniverseEventListener new
 ]
 
-{ #category : #'deferred message' }
+{ #category : #'api - ui process' }
 BlParallelUniverse >> defer: aValuable [
 	"#defer: can be used from any thread to execute a valuable in the GUI thread
 	You can use it to update the GUI states from any other thread.
@@ -149,6 +151,12 @@ BlParallelUniverse >> hasSpaces [
 	^ spaceManager hasSpaces
 ]
 
+{ #category : #'api - ui process' }
+BlParallelUniverse >> hasUIProcess [
+	self uiProcessDo: [ :aUIProcess | ^ true ].
+	^ false
+]
+
 { #category : #accessing }
 BlParallelUniverse >> hostClass [
 	^ hostClass
@@ -166,18 +174,42 @@ BlParallelUniverse >> initialize [
 	spaceManager := BlSpaceManager new.
 	hostClass := BlHeadlessHost.
 	deferredActions := WaitfreeQueue new.
+	pulsingStateMutex := Mutex new.
+	isPulsing := false.
 
 	eventDispatcher := self defaultEventDispatcher.
 	self addEventHandler: self defaultEventListener
 ]
 
+{ #category : #accessing }
+BlParallelUniverse >> isPulsing [
+	<return: #Boolean>
+	| areWePulsing |
+	
+	areWePulsing := false.
+	pulsingStateMutex critical: [ areWePulsing := isPulsing ].
+	^ areWePulsing
+]
+
 { #category : #'api - spaces' }
 BlParallelUniverse >> openSpace: aSpace [
 	"It should be possible to add a space from the other thread"
+		
+	self defer: [ self openSpaceSynchronously: aSpace ].
+	
+	aSpace host isRunning
+		ifFalse: [ aSpace host start ]
+]
+
+{ #category : #'private - spaces' }
+BlParallelUniverse >> openSpaceSynchronously: aSpace [
 
 	self
 		assert: [ aSpace isNotNil ]
 		description: [ 'Space must not be nil' ].
+
+	aSpace isOpened
+		ifTrue: [ ^ self ].
 
 	self
 		assert: [ aSpace hasHostSpace not ]
@@ -186,7 +218,7 @@ BlParallelUniverse >> openSpace: aSpace [
 	self
 		assert: [ aSpace host isNotNil ]
 		description: [ 'Space must have a host' ].
-
+		
 	"First of all we need to add space to the space manager"
 	spaceManager addSpace: aSpace.
 
@@ -197,9 +229,6 @@ BlParallelUniverse >> openSpace: aSpace [
 	self
 		assert: [ aSpace hasHostSpace ]
 		description: [ 'Space must have a host!' ].
-	
-	aSpace host isRunning
-		ifFalse: [ aSpace host start ].
 		
 	"Note: we should send shown event after everything else is done, because
 	theoretically, that only space could be closed as a reaction to the event"
@@ -207,12 +236,25 @@ BlParallelUniverse >> openSpace: aSpace [
 	
 	"Notify root element that it is now visible to the user"
 	aSpace root space: aSpace.
-	aSpace root dispatchAddedToSceneGraph.
+	aSpace root dispatchAddedToSceneGraph
 ]
 
 { #category : #pulse }
 BlParallelUniverse >> pulse [
-	spaceManager do: [ :eachSpace | eachSpace pulse ]
+	self isPulsing
+		ifTrue: [ ^ self ].
+
+	pulsingStateMutex critical: [ isPulsing := true ].
+
+	[
+		self pulseSynchronously
+	] ensure: [ pulsingStateMutex critical: [ isPulsing := false ] ]
+]
+
+{ #category : #'private - spaces' }
+BlParallelUniverse >> pulseSynchronously [
+	spaceManager do: [ :eachSpace | eachSpace pulse ].
+	self tryToRunDeferredActions
 ]
 
 { #category : #'api - spaces' }
@@ -220,4 +262,22 @@ BlParallelUniverse >> spaces [
 	<return: #Collection of: #BlSpace>
 
 	^ spaceManager spaces
+]
+
+{ #category : #'private - spaces' }
+BlParallelUniverse >> stopPulsation [
+	pulsingStateMutex critical: [ isPulsing := false ]
+]
+
+{ #category : #'deferred message' }
+BlParallelUniverse >> tryToRunDeferredActions [
+	| nextInQueue |
+	
+	[ (nextInQueue := deferredActions nextOrNil) isNotNil ]
+		whileTrue: [ nextInQueue value ]
+]
+
+{ #category : #'api - ui process' }
+BlParallelUniverse >> uiProcessDo: aBlock [
+	self hostClass uiProcessDo: aBlock
 ]

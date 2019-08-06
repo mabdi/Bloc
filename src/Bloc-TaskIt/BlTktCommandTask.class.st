@@ -1,8 +1,8 @@
 Class {
 	#name : #BlTktCommandTask,
 	#superclass : #TKTTask,
-	#traits : 'TBlDebug + TBlTktRequests',
-	#classTraits : 'TBlDebug classTrait + TBlTktRequests classTrait',
+	#traits : 'TBlDebug',
+	#classTraits : 'TBlDebug classTrait',
 	#instVars : [
 		'command'
 	],
@@ -20,12 +20,14 @@ BlTktCommandTask >> command: aCommand [
 	self
 		assert: [ aCommand isNotNil ]
 		description: [ 'Command must be non-nil' ].
-	command := aCommand asBlTktCommand
+	command := aCommand asBlTktCommand asBlTktLoggingCommand
 ]
 
 { #category : #executing }
-BlTktCommandTask >> futureTaskExecutionFor: aRunner [
-	^ self configureTaskExecution: BlTktCommandTaskFutureExecution new with: aRunner
+BlTktCommandTask >> configureTaskExecution: anExecution with: aRunner [
+	super configureTaskExecution: anExecution with: aRunner.
+	self command taskExecution: anExecution.
+	^ anExecution
 ]
 
 { #category : #accessing }
@@ -41,12 +43,6 @@ BlTktCommandTask >> printOn: aStream [
 	aStream
 		nextPutAll: 'Task named ';
 		print: self name.
-]
-
-{ #category : #accessing }
-BlTktCommandTask >> requestContext [
-	<return: #TBlTktRequests>
-	^ self command
 ]
 
 { #category : #executing }
@@ -67,8 +63,10 @@ BlTktCommandTask >> value [
 		ifNotNil: [ anOldNameOrNil asString ].
 	aTaskName := 'Task: ''', self name, ''' in ' , aTempName.
 	anActiveProcess task: self.
-	anActiveProcess name: aTaskName.
-	aResult := self command value.
-	anActiveProcess name: anOldNameOrNil.
+	aResult := [ 
+		anActiveProcess name: aTaskName.
+		self command value. 
+	] ensure: [ 
+		anActiveProcess name: anOldNameOrNil ].
 	^ aResult
 ]
