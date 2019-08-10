@@ -5,19 +5,13 @@ Class {
 }
 
 { #category : #converting }
-BlTktProtoCommand >> asAnnouncingCommand [
-	<return: #BlTktAnnouncingCommand>
-	^ BlTktAnnouncingCommand new command: self.
-]
-
-{ #category : #converting }
 BlTktProtoCommand >> asBlTktCommand [
 	^ self
 ]
 
 { #category : #converting }
 BlTktProtoCommand >> asBlTktLoggingCommand [
-	^ BlTktLoggingCommand new command: self
+	^ BlTktLoggingCommand command: self
 ]
 
 { #category : #converting }
