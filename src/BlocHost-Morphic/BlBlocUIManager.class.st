@@ -30,11 +30,17 @@ BlBlocUIManager class >> initialize [
 
 { #category : #testing }
 BlBlocUIManager class >> isValidForCurrentSystemConfiguration [
-	^ Smalltalk isHeadless and: [ 
-		"Condition that if true we asume that the user does not need an UI.
-		If that case this UI manager should not be activated."
-		({'examples' . 'releasegtoolkit'} includes: (Smalltalk vm getSystemAttribute: 2)) not or: [
-			(Smalltalk commandLine arguments includes: '--junit-xml-output') not ] ]
+	| isHeadlessVM isHeadlessMode |
+	
+	isHeadlessVM := Smalltalk os windowSystemName isNil or: [ Smalltalk os windowSystemName = 'null' ].
+	
+	"For now in case the parameter '--headless' is detected twice we assume
+	the image is run in really headless mode without an UI and do not use this UI manager."
+	isHeadlessMode := ((-1000 to: 1000)
+		collect: [ :n | Smalltalk vm getSystemAttribute: n ]
+		thenSelect: [ :each | each = '--headless' ]) size >= 2.
+		
+	^ isHeadlessVM and: [ isHeadlessMode not ]
 ]
 
 { #category : #'class initialization' }
