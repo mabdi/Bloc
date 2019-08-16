@@ -43,9 +43,9 @@ BlMorphicHostSpace >> close [
 ]
 
 { #category : #'host space - cursor' }
-BlMorphicHostSpace >> cursor: aCursorForm [
+BlMorphicHostSpace >> cursor: aCursor [
 	"Change current cursor image/view to the given one"
-	World currentHand showTemporaryCursor: aCursorForm
+	World currentHand showTemporaryCursor: aCursor asForm
 ]
 
 { #category : #'host space - accessing' }
@@ -54,6 +54,13 @@ BlMorphicHostSpace >> densityDpi [
 	<return: #Number>
 	
 	^ 96.0
+]
+
+{ #category : #'host space - events' }
+BlMorphicHostSpace >> generateEvents [
+	"Generate more complex state change events such as window scale event when resolution of the screen changes"
+	
+	spaceHostMorph world ifNil: [ spaceHostMorph announceDeleted ]
 ]
 
 { #category : #initialization }

@@ -25,33 +25,12 @@ space show
 "
 Class {
 	#name : #BlMorphicHost,
-	#superclass : #BlHost,
+	#superclass : #BlMorphicSteppingHost,
 	#instVars : [
 		'containerMorph'
 	],
-	#classVars : [
-		'IsRunning'
-	],
 	#category : #'BlocHost-Morphic-Host - Morph'
 }
-
-{ #category : #'as yet unclassified' }
-BlMorphicHost class >> fixIsRunning [
-	"A hack when the host does not work.
-	Do not use it if you do not know what you do."
-	IsRunning := false.
-]
-
-{ #category : #'api - ui process' }
-BlMorphicHost class >> forceResumeOfUIProcess: aProcess [	
-	MorphicUIManager classVarNamed: #UIProcess put: aProcess.
-	aProcess resume
-]
-
-{ #category : #'api - ui process' }
-BlMorphicHost class >> forceStartNewUIProcess [
-	UIManager default spawnNewProcess
-]
 
 { #category : #testing }
 BlMorphicHost class >> isSupported [
@@ -61,7 +40,7 @@ BlMorphicHost class >> isSupported [
 
 { #category : #testing }
 BlMorphicHost class >> label [
-	^ 'Morphic - Embed'
+	^ 'Morphic - Embedded'
 ]
 
 { #category : #testing }
@@ -70,13 +49,6 @@ BlMorphicHost class >> priority [
 	<return: #Number>
 
 	^ Float infinity
-]
-
-{ #category : #'api - ui process' }
-BlMorphicHost class >> uiProcessDo: aBlock [
-	"Evaluate aBlock with the running UI Process of this host if any"
-	
-	UIManager default uiProcess ifNotNil: aBlock
 ]
 
 { #category : #accessing }
@@ -143,23 +115,6 @@ BlMorphicHost >> initialize [
 	super initialize.
 
 	containerMorph := Morph new
-]
-
-{ #category : #'host - testing' }
-BlMorphicHost >> isRunning [
-	^ IsRunning ifNil: [ false ]
-]
-
-{ #category : #'host - api' }
-BlMorphicHost >> start [
-	IsRunning := true.
-	
-	self containerMorph defer: [ self universe pulse ]
-]
-
-{ #category : #'host - api' }
-BlMorphicHost >> stop [
-	IsRunning := false
 ]
 
 { #category : #'host - testing' }

@@ -263,7 +263,7 @@ BlSpace >> currentCursor: aCursor [
 
 	currentCursor ifNotNil: [ :cc | cc deactivateOn: self ].
 	currentCursor := aCursor.
-	currentCursor ifNil: [ ^ self updateCursorImage: Cursor normal ].
+	currentCursor ifNil: [ ^ self updateCursor: BlCursor default ].
 	currentCursor activateOn: self
 ]
 
@@ -703,7 +703,7 @@ BlSpace >> initialize [
 	self title: self defaultTitle.
 	self focused: false.
 
-	self updateCursorImage: Cursor normal.
+	self updateCursor: BlCursor default.
 
 	self root space: self.
 	self withHalos
@@ -832,9 +832,8 @@ BlSpace >> position [
 BlSpace >> position: aPoint [
 	"Request to change window's position to a given point in screen corrdinates"
 
-	self
-		hostSpaceDo: [ :aHostSpace | aHostSpace position: aPoint ]
-		ifAbsent: [ self setPosition: aPoint ]
+	self setPosition: aPoint.
+	self hostSpaceDo: [ :aHostSpace | aHostSpace position: aPoint ]
 ]
 
 { #category : #printing }
@@ -1071,10 +1070,8 @@ BlSpace >> ungrabFocus [
 ]
 
 { #category : #'cursor managing' }
-BlSpace >> updateCursorImage: anImage [
-
-	self hostSpace ifNotNil: [ :aHostSpace |
-		aHostSpace cursor: anImage ]
+BlSpace >> updateCursor: aBlCursor [
+	self hostSpaceDo: [ :aHostSpace | aHostSpace cursor: aBlCursor ]
 ]
 
 { #category : #'window - properties' }
@@ -1101,9 +1098,8 @@ BlSpace >> windowExtent: anExtent [
 	"Request to change a window size to aNewExtent.
 	Note, that window size may be different from renderer size on high dpi (retina) displays"
 
-	self
-		hostSpaceDo: [ :aHostSpace | aHostSpace windowExtent: anExtent ]
-		ifAbsent: [ self setExtent: anExtent ]
+	self setExtent: anExtent.
+	self hostSpaceDo: [ :aHostSpace | aHostSpace windowExtent: anExtent ]
 ]
 
 { #category : #'window - properties' }
