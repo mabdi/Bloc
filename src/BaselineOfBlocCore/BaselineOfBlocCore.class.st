@@ -10,7 +10,7 @@ BaselineOfBlocCore >> baseline: spec [
 	spec for: #'common' do: [
 		spec 
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.2/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.3/src' ];
 			baseline: 'Beacon' with: [
 				spec repository: 'github://feenkcom/pharo-beacon:0ba3c998da3849e6d1d00a6245699cd795d3bd65/repository' ].
 		spec 
