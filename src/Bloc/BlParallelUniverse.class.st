@@ -8,6 +8,7 @@ Class {
 	#classTraits : 'TBlEventTarget classTrait',
 	#instVars : [
 		'deferredActions',
+		'postponedActions',
 		'eventDispatcher',
 		'hostClass',
 		'spaceManager',
@@ -68,8 +69,13 @@ BlParallelUniverse class >> morphic [
 
 { #category : #'api - spaces' }
 BlParallelUniverse >> closeSpace: aSpace [
-	"It should be possible to close a space from the other thread"
+	self defer: [ self closeSpaceSynchronously: aSpace ]
+]
 
+{ #category : #'private - spaces' }
+BlParallelUniverse >> closeSpaceSynchronously: aSpace [
+	| aHost |
+	
 	self
 		assert: [ aSpace isNotNil ]
 		description: [ 'Space must not be nil' ].
@@ -77,6 +83,20 @@ BlParallelUniverse >> closeSpace: aSpace [
 	"If space is not event opened we should do nothing"
 	aSpace isOpened
 		ifFalse: [ ^ self ].
+		
+	"we have to defer the check to the next frame, otherwise the UI loop may be terminated
+	before frame finishes"
+
+	"we have to store a reference to the original host because it may potentially change.
+	for example assume the following:
+	[[[
+	aSpace close.
+	aSpace host: BlHost pickHost.
+	aSpace show
+	]]]
+
+	the actual termination of the host may happen after a host of the space is changed"
+	aHost := aSpace host.
 	
 	"first remove space itself from space manager, to break any recursions"
 	spaceManager removeSpace: aSpace.
@@ -84,8 +104,7 @@ BlParallelUniverse >> closeSpace: aSpace [
 	"then destroy host space"
 	aSpace hasHostSpace
 		ifTrue: [ aSpace host destroyHostSpaceFor: aSpace ].
-	
-	
+
 	"Notify root element that it is no longer in scene graph"
 	aSpace root dispatchRemovedFromSceneGraph.
 	"Send space closed event.
@@ -96,11 +115,14 @@ BlParallelUniverse >> closeSpace: aSpace [
 	self
 		assert: [ aSpace hasHostSpace not ]
 		description: [ 'Host space must not have a host!' ].
-
-	"as the last step we may want to stop the host. It may terminate
-	the current process, so we should do it at last"
-	(spaceManager hasSpaces not and: [ aSpace host isRunning ])
-		ifTrue: [ aSpace host stop ].
+	
+	(spaceManager hasSpaces not and: [ aHost isRunning ])
+		ifTrue: [
+			self defer: [
+				"as the last step we may want to stop the host. It may terminate
+				the current process, so we should do it at last"
+				(spaceManager hasSpaces not and: [ aHost isRunning ])
+					ifTrue: [ aHost stop ] ] ]
 ]
 
 { #category : #'api - spaces' }
@@ -174,6 +196,7 @@ BlParallelUniverse >> initialize [
 	spaceManager := BlSpaceManager new.
 	hostClass := BlHeadlessHost.
 	deferredActions := WaitfreeQueue new.
+	postponedActions := WaitfreeQueue new.
 	pulsingStateMutex := Mutex new.
 	isPulsing := false.
 
@@ -194,7 +217,7 @@ BlParallelUniverse >> isPulsing [
 { #category : #'api - spaces' }
 BlParallelUniverse >> openSpace: aSpace [
 	"It should be possible to add a space from the other thread"
-		
+
 	self defer: [ self openSpaceSynchronously: aSpace ].
 	
 	aSpace host isRunning
@@ -239,6 +262,15 @@ BlParallelUniverse >> openSpaceSynchronously: aSpace [
 	aSpace root dispatchAddedToSceneGraph
 ]
 
+{ #category : #'api - ui process' }
+BlParallelUniverse >> postpone: aValuable [
+	"#postpone: can be used from any thread to execute a valuable in the GUI thread
+	after the pulse is completed.
+	I am different from #defer: in that #defer: actios are evaluated befoer the pulse of the universe"
+
+	postponedActions nextPut: aValuable
+]
+
 { #category : #pulse }
 BlParallelUniverse >> pulse [
 	self isPulsing
@@ -253,11 +285,17 @@ BlParallelUniverse >> pulse [
 
 { #category : #'private - spaces' }
 BlParallelUniverse >> pulseSynchronously [
-
 	"deferred actions must be run before spaces"
 	self tryToRunDeferredActions.
 
-	spaceManager do: [ :eachSpace | eachSpace pulse ]
+	spaceManager do: [ :eachSpace | eachSpace pulse ].
+
+	self tryToRunPostponedActions
+]
+
+{ #category : #'api - lifecycle' }
+BlParallelUniverse >> snapshot: save andQuit: quit [
+	self postpone: [ Smalltalk snapshot: save andQuit: quit ]
 ]
 
 { #category : #'api - spaces' }
@@ -277,6 +315,14 @@ BlParallelUniverse >> tryToRunDeferredActions [
 	| nextInQueue |
 	
 	[ (nextInQueue := deferredActions nextOrNil) isNotNil ]
+		whileTrue: [ nextInQueue value ]
+]
+
+{ #category : #'deferred message' }
+BlParallelUniverse >> tryToRunPostponedActions [
+	| nextInQueue |
+	
+	[ (nextInQueue := postponedActions nextOrNil) isNotNil ]
 		whileTrue: [ nextInQueue value ]
 ]
 

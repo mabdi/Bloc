@@ -8,8 +8,8 @@ Class {
 		'EventsSensor',
 		'HostSpaceRegistry',
 		'HostSpaceRegistryMutex',
-		'IsRunning',
-		'UIProcess'
+		'UIProcess',
+		'UserInterruptEventHandler'
 	],
 	#category : #'BlocHost-Glutin'
 }
@@ -63,6 +63,20 @@ BlGlutinHost class >> hostForWindow: aWindow do: aBlock [
 			ifPresent: aBlock ]
 ]
 
+{ #category : #'class initialization' }
+BlGlutinHost class >> initialize [
+	EventsSensor := BlGlutinWindowEventsSensor new.
+	UserInterruptEventHandler := BlGlutinUserInterruptHandler new
+]
+
+{ #category : #'host - api' }
+BlGlutinHost class >> isRunning [
+	<return: #Boolean>
+
+	self uiProcessDo: [ :aUIProcess | ^ aUIProcess isTerminated not ].
+	^ false
+]
+
 { #category : #'driver selection' }
 BlGlutinHost class >> isSupported [
 	"Only works in headless vm"
@@ -90,6 +104,36 @@ BlGlutinHost class >> priority [
 { #category : #private }
 BlGlutinHost class >> spaceRegistry [
 	^ HostSpaceRegistry ifNil: [ HostSpaceRegistry := WeakIdentityValueDictionary new ]
+]
+
+{ #category : #'host - api' }
+BlGlutinHost class >> start [
+	self forceStartNewUIProcess.
+
+	GlutinEventsFetcher default
+		addEventHandler: UserInterruptEventHandler;
+		addEventHandler: EventsSensor.
+	GlutinEventsFetcher install
+]
+
+{ #category : #'host - api' }
+BlGlutinHost class >> stop [
+	| aUIProcess |
+
+	aUIProcess := UIProcess.
+	UIProcess := nil.
+	aUIProcess ifNotNil: #terminate
+]
+
+{ #category : #'api - ui process' }
+BlGlutinHost class >> terminateUIProcess [
+	| aProcessToTerminate |
+	
+	self uiProcessDo: [ :aProcess | aProcessToTerminate := aProcess ].
+	UIProcess := nil.
+	aProcessToTerminate terminate
+	
+	"if called from UI thread nothing past this line will be executed"
 ]
 
 { #category : #'api - ui process' }
@@ -192,7 +236,19 @@ BlGlutinHost >> isRunning [
 	"Return true if host is initialized and running"
 	<return: #Boolean>
 
-	^ IsRunning ifNil: [ false ]
+	^ self class isRunning
+]
+
+{ #category : #'host - testing' }
+BlGlutinHost >> isStillAvailable [
+	"Let's assume that a space is opened with me as a host.
+	I return true if I am still available host for the current system.
+	For example if a space is opened in a native window with a headless VM
+	and then reopened with a headfull VM all those spaces should be re-opened
+	with a different host, for example morphic"
+	<return: #Boolean>
+
+	^ self class isSupported
 ]
 
 { #category : #'event - handling' }
@@ -227,26 +283,12 @@ BlGlutinHost >> spaceRegistry [
 
 { #category : #'host - api' }
 BlGlutinHost >> start [
-	self isRunning
-		ifTrue: [ ^ self ].
-
-	IsRunning := true.
-	
-	EventsSensor := BlGlutinWindowEventsSensor new.
-	
-	self class forceStartNewUIProcess.
-
-	GlutinEventsFetcher default eventHandlers addAll: {
-		BlGlutinUserInterruptHandler new.
-		EventsSensor }.
-
-	GlutinEventsFetcher install
+	self class start
 ]
 
 { #category : #'host - api' }
 BlGlutinHost >> stop [
-	IsRunning := false.
-	UIProcess := nil
+	self class stop
 ]
 
 { #category : #'host - testing' }
