@@ -31,6 +31,14 @@ BlTktCommandTask >> configureTaskExecution: anExecution with: aRunner [
 ]
 
 { #category : #accessing }
+BlTktCommandTask >> entryIdentifier [
+	"Answer the queue entry identifier of the receiver for task scheduling.
+	Defer to my command."
+
+	^command entryIdentifier
+]
+
+{ #category : #accessing }
 BlTktCommandTask >> entryPriority [
 	"Answer the priority of the receiver for task scheduling.
 	Defer to my command."
@@ -60,21 +68,11 @@ BlTktCommandTask >> scheduleTaskExecutionFor: aRunner [
 
 { #category : #executing }
 BlTktCommandTask >> value [
-	| aResult anOldNameOrNil anActiveProcess aTempName aTaskName |
+
 	self
 		assert: [ self command isNil not ]
 		description: [ 'Command task must be initialized before using it' ].
-	anActiveProcess := Processor activeProcess.
-	anOldNameOrNil := anActiveProcess gtName.
-	aTempName := anOldNameOrNil
-		ifNil: [ '' ]
-		ifNotNil: [ anOldNameOrNil asString ].
-	aTaskName := 'Task: ''', self name, ''' in ' , aTempName.
-	anActiveProcess task: self.
-	aResult := [ 
-		anActiveProcess name: aTaskName.
-		self command value. 
-	] ensure: [ 
-		anActiveProcess name: anOldNameOrNil ].
-	^ aResult
+	Processor activeProcess task: self.
+	^self command value. 
+
 ]

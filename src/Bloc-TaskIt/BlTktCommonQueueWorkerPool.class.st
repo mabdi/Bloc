@@ -14,17 +14,18 @@ BlTktCommonQueueWorkerPool >> ensureIsWorking [
 	"Over-write to not terminate worker processes.
 	Trying to terminate idle workers produces more delays than resource saving."
 
-	mutex
-		critical: [ failedTasks
-				addAll: (self workers reject: #isRunning thenCollect: #currentTaskExecution).
-			failedTasks
-				ifNotEmpty:
-					[ self logCr: failedTasks size asString , ' Failed tasks encountered' ].
-			(workers reject: #isRunning)
-				do: [ :w | 
-					workers remove: w ].
-			self privateManageWorkersBefore.
-			self privateManageWorkersAfter ]
+	mutex critical: [ 
+		(workers reject: #isRunning) do: [ :worker | 
+			failedTasks add: worker currentTaskExecution.
+			workers remove: worker. ].
+		(workers select: #isSuspended) do: [ :worker | 
+			failedTasks add: worker currentTaskExecution.
+			worker stopAfterTaskCompleted.
+			workers remove: worker. ].
+		failedTasks ifNotEmpty:
+			[ self logCr: failedTasks size asString , ' Failed tasks encountered' ].
+		self privateManageWorkersBefore.
+		self privateManageWorkersAfter ]
 ]
 
 { #category : #initialization }
@@ -74,4 +75,24 @@ BlTktCommonQueueWorkerPool >> processPriority: anInteger [
 BlTktCommonQueueWorkerPool >> processProvider [
 	<return: #TKTTaskItProcessProvider>
 	^ BlTktProcessProvider new processPriority: self processPriority
+]
+
+{ #category : #'public - mutexed' }
+BlTktCommonQueueWorkerPool >> scheduleTaskExecution: aTaskExecution [
+
+	| add |
+	mutex critical: [ 
+		self ensureIsBeingWatched.
+		self privateManageWorkersBefore.
+		"Don't schedule the task if it is already being executed"
+		add := true.
+		aTaskExecution entryIdentifier ifNotNil: [ :identifier |
+			workers
+				detect: [ :each | each entryIdentifier = identifier ] 
+				ifFound: [ :entry |
+					self flag: #remove.
+					StringSignal emit: 'worker duplicate found'.
+					add := false ] ].
+		add ifTrue: [ taskQueue nextPut: aTaskExecution ].
+		self privateManageWorkersAfter ]
 ]
