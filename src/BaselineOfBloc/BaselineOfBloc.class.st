@@ -30,17 +30,17 @@ BaselineOfBloc >> baseline: spec [
 		spec postLoadDoIt: #'postLoadBloc:'.
 		spec 
 			baseline: 'BlocCore' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.7.51/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'BlocLayout' with: [
-				spec repository: 'github://feenkcom/Bloc:v0.7.51/src' ];
+				spec repository: 'github://feenkcom/Bloc/src' ];
 			baseline: 'Sparta' with: [
-				spec repository: 'github://feenkcom/Sparta:v0.7.4/src' ];
+				spec repository: 'github://feenkcom/Sparta/src' ];
 			baseline: 'TaskIt' with: [
 				spec repository: 'github://sbragagnolo/taskit:v1.0.2' ];
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.3/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-examples/src' ];
 			baseline: 'Glutin' with: [
-				spec repository: 'github://feenkcom/gtoolkit-glutin:v0.7.18/src' ].
+				spec repository: 'github://feenkcom/gtoolkit-glutin/src' ].
 		spec 
 			package: #'Bloc-Geometry' with: [
 				spec requires: #(#BlocCore ). ];
@@ -71,11 +71,15 @@ BaselineOfBloc >> baseline: spec [
 			package: #'BlocHost-Morphic' with: [
 				spec requires: #(#BlocCore ). ];
 			package: #'BlocHost-Glutin' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta' #Glutin ). ];
+				spec requires: #(#BlocCore 'Bloc-Sparta' Glutin). ];
 			package: #'Bloc-Extensions' with: [
 				spec requires: #('BlocCore' 'Bloc-Sparta' 'Bloc-Animation' 'Bloc-DevTool' ). ];
 			package: 'Bloc-TaskIt' with: [
-				spec requires: #('TaskIt' 'BlocCore' #'Bloc-Animation' #'Bloc-Text-Elements' ). ]. ].
+				spec requires: #('TaskIt' 'BlocCore' #'Bloc-Animation' #'Bloc-Text-Elements' ). ];
+			package: #'Bloc-Async' with: [
+				spec requires: #(#'Bloc-TaskIt' ). ];
+			package: #'Bloc-Images' with: [
+				spec requires: #(#'Bloc-Async' ). ]. ].
 
 ]
 
