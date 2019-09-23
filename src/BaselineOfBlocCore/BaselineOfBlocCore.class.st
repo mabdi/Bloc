@@ -12,7 +12,7 @@ BaselineOfBlocCore >> baseline: spec [
 			baseline: 'GToolkitExamplesEngine' with: [
 				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.4/src' ];
 			baseline: 'Beacon' with: [
-				spec repository: 'github://feenkcom/pharo-beacon:e5c91f9a77cb675d60ab54c758add457eaefb9c4/repository' ].
+				spec repository: 'github://feenkcom/pharo-beacon:2ca6e08b8f278b83ab7cd0dbe360f3fed0504636/repository' ].
 		spec 
 			package: #Bloc with: [
 				spec requires: #(#Beacon ). ];
