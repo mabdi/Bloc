@@ -30,17 +30,17 @@ BaselineOfBloc >> baseline: spec [
 		spec postLoadDoIt: #'postLoadBloc:'.
 		spec 
 			baseline: 'BlocCore' with: [
-				spec repository: 'github://feenkcom/Bloc/src' ];
+				spec repository: 'github://feenkcom/Bloc:v0.7.83/src' ];
 			baseline: 'BlocLayout' with: [
-				spec repository: 'github://feenkcom/Bloc/src' ];
+				spec repository: 'github://feenkcom/Bloc:v0.7.83/src' ];
 			baseline: 'Sparta' with: [
-				spec repository: 'github://feenkcom/Sparta/src' ];
+				spec repository: 'github://feenkcom/Sparta:v0.7.12/src' ];
 			baseline: 'TaskIt' with: [
 				spec repository: 'github://sbragagnolo/taskit:v1.0.2' ];
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.4/src' ];
 			baseline: 'Glutin' with: [
-				spec repository: 'github://feenkcom/gtoolkit-glutin/src' ].
+				spec repository: 'github://feenkcom/gtoolkit-glutin:v0.7.26/src' ].
 		spec 
 			package: #'Bloc-Geometry' with: [
 				spec requires: #(#BlocCore ). ];
@@ -67,20 +67,11 @@ BaselineOfBloc >> baseline: spec [
 			package: #'Bloc-Examples' with: [
 				spec requires: #('GToolkitExamplesEngine' 'BlocLayout' 'Bloc-Geometry' 'Bloc-Infinite' 'Bloc-Infinite-Layouts' 'Bloc-DevTool' 'Bloc-Text-Elements' ). ];
 			package: #'BlocHost-Mock' with: [
-				spec requires: #(#BlocCore ). ].
-
-		SystemVersion current major >= 8 ifTrue: [ 
-			spec
-				package: #'BlocHost-Morphic' with: [
-					spec requires: #(#BlocCore ). ] ]
-		ifFalse: [ 
-			spec
-				package: #'BlocHost-Morphic7' with: [
-					spec requires: #(#BlocCore ). ] ].
-
-		spec
+				spec requires: #(#BlocCore ). ];
+			package: #'BlocHost-Morphic7' with: [
+				spec requires: #(#BlocCore ). ];
 			package: #'BlocHost-Glutin' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta' Glutin). ];
+				spec requires: #(#BlocCore 'Bloc-Sparta' #Glutin ). ];
 			package: #'Bloc-Extensions' with: [
 				spec requires: #('BlocCore' 'Bloc-Sparta' 'Bloc-Animation' 'Bloc-DevTool' ). ];
 			package: 'Bloc-TaskIt' with: [
