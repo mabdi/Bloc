@@ -6,7 +6,7 @@ Class {
 		'drawingCache',
 		'mySession'
 	],
-	#category : #'BlocHost-Morphic-World'
+	#category : #'BlocHost-Morphic7-World'
 }
 
 { #category : #accessing }
@@ -56,7 +56,8 @@ BlMorphicWorldMorph >> displayExtent: aPoint [
 ]
 
 { #category : #drawing }
-BlMorphicWorldMorph >> drawOnSpartaCanvas: aCanvas [	
+BlMorphicWorldMorph >> drawOnSpartaCanvas: aCanvas [
+
 	self validateDrawingCache.
 	
 	aCanvas fill
@@ -74,20 +75,7 @@ BlMorphicWorldMorph >> drawOnSpartaCanvas: aCanvas [
 			paint: aBitmap;
 			path: eachMorph bounds;
 			antialiasNone;
-			draw ].
-
-	self worldState hands reverseDo: [ :eachHand |
-		eachHand submorphs reverseDo: [ :eachMorph |
-			| aBitmap |
-			aBitmap := self drawingCache
-				at: eachMorph
-				ifAbsentPut: [ aCanvas bitmap fromForm: eachMorph imageForm ].
-			
-			aCanvas fill
-				paint: aBitmap;
-				path: eachMorph bounds;
-				antialiasNone;
-				draw ] ]
+			draw ]
 ]
 
 { #category : #accessing }
@@ -175,7 +163,6 @@ BlMorphicWorldMorph >> validateDrawingCache [
 			self drawingCache removeAll ].
 
 	self drawingCache keys
-		do: [ :eachMorph |
-			(eachMorph owner == self)
-				ifFalse: [ self drawingCache removeKey: eachMorph ifAbsent: [  ] ] ]
+		do: [ :eachMorph | eachMorph owner == self
+			ifFalse: [ self drawingCache removeKey: eachMorph ifAbsent: [  ] ] ].
 ]
