@@ -1,8 +1,21 @@
 Class {
 	#name : #BlOSWindowSDL2Host,
 	#superclass : #BlOSWindowHost,
+	#classVars : [
+		'PulseLoop'
+	],
 	#category : #'BlocHost-OSWindow-SDL2'
 }
+
+{ #category : #'class initialization' }
+BlOSWindowSDL2Host class >> initialize [
+	PulseLoop := BlHostPulseLoop forUniverse: (BlParallelUniverse forHost: self)
+]
+
+{ #category : #testing }
+BlOSWindowSDL2Host class >> isRunning [
+	^ PulseLoop isRunning
+]
 
 { #category : #'driver selection' }
 BlOSWindowSDL2Host class >> isSupported [
@@ -24,6 +37,31 @@ BlOSWindowSDL2Host class >> priority [
 	^ 40
 ]
 
+{ #category : #testing }
+BlOSWindowSDL2Host class >> start [
+	PulseLoop start
+]
+
+{ #category : #testing }
+BlOSWindowSDL2Host class >> stop [
+	PulseLoop stop
+]
+
+{ #category : #'api - ui process' }
+BlOSWindowSDL2Host class >> uiProcessDo: aBlock [
+	"Evaluate aBlock with the running UI Process of this host if any"
+	
+	PulseLoop loopProcess ifNotNil: aBlock
+]
+
+{ #category : #'host - api' }
+BlOSWindowSDL2Host >> isRunning [
+	"Return true if host is initialized and running"
+	<return: #Boolean>
+
+	^ self class isRunning
+]
+
 { #category : #initialization }
 BlOSWindowSDL2Host >> keyboardKeyTable [
 	^ BlOSWindowSDL2KeyboardKeyTable default
@@ -43,4 +81,14 @@ BlOSWindowSDL2Host >> preferableDriver [
 	OSSDL2Driver current: aDriver.
 
 	^ aDriver
+]
+
+{ #category : #'host - api' }
+BlOSWindowSDL2Host >> start [
+	self class start
+]
+
+{ #category : #'host - api' }
+BlOSWindowSDL2Host >> stop [
+	self class stop
 ]
