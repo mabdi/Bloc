@@ -9,9 +9,7 @@ Class {
 	#classTraits : 'TBlHostSpace classTrait',
 	#instVars : [
 		'window',
-		'renderer',
 		'eventFetcher',
-		'osWindowRenderer',
 		'keyboardKeyTable'
 	],
 	#category : #'BlocHost-OSWindow-Host'
@@ -104,56 +102,6 @@ BlOSWindowSpace >> initialize [
 ]
 
 { #category : #initialization }
-BlOSWindowSpace >> initializeForBuffer: aBufferSurface [
-	"Asks host space to initialize itself to be used together with a pixel buffer surface.
-	Default implementation simply connects renderer, host space and surface together"
-
-	aBufferSurface hostSpace: self.
-	aBufferSurface hostRenderer: self renderer.
-
-	self renderer surface: aBufferSurface.
-
-	window newBlocRenderer surface: aBufferSurface.
-	window validHandle renderer initializeForBuffer: aBufferSurface
-]
-
-{ #category : #initialization }
-BlOSWindowSpace >> initializeForForm: anFormSurface [
-	"Asks host space to initialize itself to be used together with a Form surface.
-	Default implementation simply connects renderer, host space and surface together"
-	
-	self initializeWithAttributes: (self host createAttributesFor: self space).
-	
-	anFormSurface hostSpace: self.
-	anFormSurface hostRenderer: self renderer.
-
-	self renderer surface: anFormSurface.
-
-	window newBlocRenderer surface: anFormSurface
-]
-
-{ #category : #initialization }
-BlOSWindowSpace >> initializeForOpenGL: anOpenGLSurface [
-	"Asks host space to initialize itself to be used together with an OpenGL surface.
-	Default implementation simply connects renderer, host space and surface together"
-	| glAttributes |
-	
-	glAttributes := OSWindowGLAttributes new.
-	glAttributes redSize: 8.
-	glAttributes greenSize: 8.
-	glAttributes blueSize: 8.
-	glAttributes stencilSize: 8.
-	
-	self initializeWithAttributes: ((self host createAttributesFor: self space) glAttributes: glAttributes).
-
-	anOpenGLSurface hostSpace: self.
-	anOpenGLSurface hostRenderer: self renderer.
-
-	self renderer surface: anOpenGLSurface.
-	window newBlocRenderer surface: anOpenGLSurface
-]
-
-{ #category : #initialization }
 BlOSWindowSpace >> initializeWithAttributes: initialAttributes [
 	
 	self
@@ -163,6 +111,7 @@ BlOSWindowSpace >> initializeWithAttributes: initialAttributes [
 	window := OSWindow createWithAttributes: initialAttributes.
 	window eventHandler: ((BlOSWindowEventHandler window: self) keyboardKeyTable: keyboardKeyTable).
 	window startTextInput.
+	window newBlocRenderer.
 	
 	(BlOSWindowCreatedSignal new window: window) emit
 ]
@@ -255,32 +204,6 @@ BlOSWindowSpace >> position [
 { #category : #'host space - geometry' }
 BlOSWindowSpace >> position: aPoint [
 	window position: aPoint
-]
-
-{ #category : #'host space - rendering' }
-BlOSWindowSpace >> presentBufferSurface: aBlHostRendererBufferSurface areas: aCollectionOfAreas [
-	window validHandle renderer
-		presentBufferSurface: aBlHostRendererBufferSurface areas: aCollectionOfAreas
-]
-
-{ #category : #'host space - rendering' }
-BlOSWindowSpace >> presentFormSurface: aBlHostRendererFormSurface areas: aCollectionOfAreas [
-	window validHandle renderer
-		presentFormSurface: aBlHostRendererFormSurface areas: aCollectionOfAreas
-]
-
-{ #category : #'host space - rendering' }
-BlOSWindowSpace >> presentOpenGLSurface: aBlHostRendererOpenGLSurface areas: aCollectionOfAreas [
-	window validHandle renderer
-		presentOpenGLSurface: aBlHostRendererOpenGLSurface areas: aCollectionOfAreas
-]
-
-{ #category : #'host space - rendering' }
-BlOSWindowSpace >> render: aBlSpace onOpenGLSurface: aBlHostRendererOpenGLSurface [
-	"Render a given space on an OpenGL surface.
-	By default dispatch directly to the renderer"
-
-	self renderer doRender: aBlSpace dirtyAreas: { 0 @ 0 extent: aBlSpace extent }
 ]
 
 { #category : #'window - properties' }

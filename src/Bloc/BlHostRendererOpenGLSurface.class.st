@@ -10,7 +10,7 @@ Class {
 		'context',
 		'extent'
 	],
-	#category : #'Bloc-Universe - Host'
+	#category : #'Bloc-Universe - Renderer'
 }
 
 { #category : #accessing }
@@ -36,6 +36,20 @@ BlHostRendererOpenGLSurface >> context: anObject [
 	context := anObject
 ]
 
+{ #category : #initialization }
+BlHostRendererOpenGLSurface >> createSpaceRendererOn: anObject [
+	<return: #BlHostSpaceRenderer>
+
+	^ anObject createOpenGLSpaceRenderer
+]
+
+{ #category : #initialization }
+BlHostRendererOpenGLSurface >> createSurfaceRendererOn: anObject [
+	<return: #BlHostSurfaceRenderer>
+
+	^ anObject createOpenGLSurfaceRenderer
+]
+
 { #category : #accessing }
 BlHostRendererOpenGLSurface >> extent [
 	^ extent
@@ -47,33 +61,9 @@ BlHostRendererOpenGLSurface >> extent: anObject [
 ]
 
 { #category : #initialization }
-BlHostRendererOpenGLSurface >> initializeOn: anObject [
-	anObject initializeForOpenGL: self
-]
-
-{ #category : #initialization }
 BlHostRendererOpenGLSurface >> initializeResourcesOn: aHostRenderer [
 	"Initialize me and host renderer depending on surface type.
 	must be implemented by subclasses"
 	
 	self initializeOn: aHostRenderer
-]
-
-{ #category : #rendering }
-BlHostRendererOpenGLSurface >> prepareToRender: aSpace [
-	"Dispatch preparation to render through host space based on surface type"
-	
-	self hostSpace prepareToRender: aSpace onOpenGLSurface: self
-]
-
-{ #category : #presenting }
-BlHostRendererOpenGLSurface >> presentAreas: aCollectionOfRectangles [
-	hostSpace presentOpenGLSurface: self areas: aCollectionOfRectangles
-]
-
-{ #category : #rendering }
-BlHostRendererOpenGLSurface >> renderFor: aSpace [
-	"Dispatch render process through host space based on surface type"
-	
-	self hostSpace render: aSpace onOpenGLSurface: self
 ]

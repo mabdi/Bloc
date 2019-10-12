@@ -9,7 +9,7 @@ Class {
 	#instVars : [
 		'externalForm'
 	],
-	#category : #'Bloc-Universe - Host'
+	#category : #'Bloc-Universe - Renderer'
 }
 
 { #category : #accessing }
@@ -23,6 +23,20 @@ BlHostRendererFormSurface class >> supportedBy: anObject [
 	<return: #Boolean>
 
 	^ anObject supportsFormSurface
+]
+
+{ #category : #initialization }
+BlHostRendererFormSurface >> createSpaceRendererOn: anObject [
+	<return: #BlHostSpaceRenderer>
+
+	^ anObject createFormSpaceRenderer
+]
+
+{ #category : #initialization }
+BlHostRendererFormSurface >> createSurfaceRendererOn: anObject [
+	<return: #BlHostSurfaceRenderer>
+	
+	^ anObject createFormSurfaceRenderer
 ]
 
 { #category : #geometry }
@@ -39,9 +53,9 @@ BlHostRendererFormSurface >> form [
 	^ externalForm
 ]
 
-{ #category : #initialization }
-BlHostRendererFormSurface >> initializeOn: anObject [
-	anObject initializeForForm: self
+{ #category : #accessing }
+BlHostRendererFormSurface >> form: aForm [
+	externalForm := aForm
 ]
 
 { #category : #initialization }
@@ -58,25 +72,6 @@ BlHostRendererFormSurface >> initializeResourcesOn: aHostRenderer [
 { #category : #accessing }
 BlHostRendererFormSurface >> pointer [
 	^ externalForm pointer
-]
-
-{ #category : #rendering }
-BlHostRendererFormSurface >> prepareToRender: aSpace [
-	"Dispatch preparation to render through host space based on surface type"
-	
-	self hostSpace prepareToRender: aSpace onFormSurface: self
-]
-
-{ #category : #presenting }
-BlHostRendererFormSurface >> presentAreas: aCollectionOfRectangles [
-	hostSpace presentFormSurface: self areas: aCollectionOfRectangles
-]
-
-{ #category : #rendering }
-BlHostRendererFormSurface >> renderFor: aSpace [
-	"Dispatch render process through host space based on surface type"
-	
-	self hostSpace render: aSpace onFormSurface: self
 ]
 
 { #category : #accessing }

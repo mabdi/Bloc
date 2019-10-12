@@ -38,6 +38,13 @@ BlMorphicWindowHostSpace >> close [
 	morphicWindow close
 ]
 
+{ #category : #initialization }
+BlMorphicWindowHostSpace >> createFormSurfaceRenderer [
+	<return: #BlHostSurfaceRenderer>
+	
+	^ BlMorphicFormSurfaceRenderer new spaceHostMorph: morphicWindow spaceHostMorph
+]
+
 { #category : #'host space - cursor' }
 BlMorphicWindowHostSpace >> cursor: aCursor [
 	"Change current cursor image/view to the given one"
@@ -137,11 +144,6 @@ BlMorphicWindowHostSpace >> position: aPoint [
 	"Change window's position to a given point in screen corrdinates"
 	
 	morphicWindow position: aPoint
-]
-
-{ #category : #'host space - rendering' }
-BlMorphicWindowHostSpace >> presentFormSurface: aBlHostRendererFormSurface areas: aCollectionOfAreas [
-	morphicWindow form: aBlHostRendererFormSurface form
 ]
 
 { #category : #'host space - displaying' }

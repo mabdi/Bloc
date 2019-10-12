@@ -5,20 +5,11 @@ I allow space to be rendered on sparta canvas without making any asumptions abou
 "
 Class {
 	#name : #BlSpartaRenderer,
-	#superclass : #Object,
-	#traits : 'TBlHostRenderer + TBlDebug',
-	#classTraits : 'TBlHostRenderer classTrait + TBlDebug classTrait',
-	#instVars : [
-		'spartaCanvas',
-		'session',
-		'surface',
-		'windowExtent',
-		'canvasExtent'
-	],
+	#superclass : #BlHostRenderer,
 	#classInstVars : [
 		'defaultCanvasBuilder'
 	],
-	#category : #'Bloc-Sparta'
+	#category : #'Bloc-Sparta-Renderer'
 }
 
 { #category : #accessing }
@@ -28,8 +19,8 @@ BlSpartaRenderer class >> availableCanvasBuilderClasses [
 	
 	^ ((BlSpartaCanvasBuilder allSubclasses select: [ :aBuilderClass | aBuilderClass isSupported ])
 		select: [ :aBuilderClass | 
-			BlHostRendererSurface allSurfaces anySatisfy: [ :aSurface |
-				(aSurface supportedBy: aBuilderClass) and: [ aSurface supportedBy: BlUniverse default host ] ] ])
+			BlHostRendererSurface allSurfaces anySatisfy: [ :aSurfaceClass |
+				(aSurfaceClass supportedBy: aBuilderClass) and: [ aSurfaceClass supportedBy: BlUniverse default host ] ] ])
 		sort: [ :a :b | a priority < b priority ]
 ]
 
@@ -57,122 +48,32 @@ BlSpartaRenderer class >> pickCanvasBuilderClass [
 		ifNotEmpty: [ :theBuilderClasses | theBuilderClasses first ]
 ]
 
-{ #category : #'renderer - rendering' }
-BlSpartaRenderer >> doRender: aSpace dirtyAreas: aCollectionOfRectangles [
-	| theDirtyAreas |
+{ #category : #accessing }
+BlSpartaRenderer class >> pickCanvasForSurface: aSurface [
+	<return: #BlSpartaCanvasBuilder>
+	| theCanvases theSupportedCanvases |
 	
-	self
-		assert: [ session == Smalltalk session ]
-		description: [ 'Session has been changed! Fix your #prepareToRender: !' ].
+	theCanvases := self availableCanvasBuilderClasses sorted: [ :a :b | a priority < b priority ].
 	
-	self
-		assert: [ spartaCanvas isValid ]
-		description: [ 'Sparta Canvas must be valid at this point!' ].
+	theSupportedCanvases := theCanvases
+		select: [ :eachCanvas | aSurface class supportedBy: eachCanvas ].
 	
-	"collect the dirty area to be updated"
-	theDirtyAreas := aCollectionOfRectangles 
-		collect: [ :each | each intersect: (0@0 extent: windowExtent) ifNone: [ nil ] ]
-		thenSelect: [ :each | each isNotNil and: [ each hasPositiveExtent ] ].
+	theSupportedCanvases
+		ifEmpty: [ self error: '{1} is not supported by any canvas' ].
 
-	theDirtyAreas
-		ifEmpty: [ ^ self ].
-
-	theDirtyAreas do: [ :aBlBounds | 
-		spartaCanvas clip by: aBlBounds during: [ 
-			aSpace fullDrawOn: spartaCanvas ] ].
-
-	spartaCanvas flush.
-
-	self presentAreas: theDirtyAreas
+	^ theSupportedCanvases first new
 ]
 
-{ #category : #'renderer - testing' }
-BlSpartaRenderer >> hasResized [
-	"Return true if host space resized since previous frame, otherwise false"
-
-	<return: #Boolean>
-	^ session ~= Smalltalk session
-		or: [ self surface logicalSize width @ self surface logicalSize height
-				~= windowExtent
-				or: [ self surface physicalSize width @ self surface physicalSize height
-						~= canvasExtent ] ]
-]
-
-{ #category : #initialization }
-BlSpartaRenderer >> initialize [
-	super initialize.
-
-	spartaCanvas := nil.
-	surface := nil
-]
-
-{ #category : #initialization }
-BlSpartaRenderer >> initializeForBuffer: aBufferSurface [
-	"Initalize sparta canvas to be used with a pixel buffer surface"
-	| scaleFactor |
-	
-	windowExtent := aBufferSurface logicalSize width
-		@ aBufferSurface logicalSize height.
-	canvasExtent := aBufferSurface physicalSize width
-		@ aBufferSurface physicalSize height.
-	scaleFactor := aBufferSurface dpiFactor asPoint.
-	spartaCanvas := (self pickCanvasForSurface: aBufferSurface)
-		forBufferOn: aBufferSurface.
-	self
-		assert: [ spartaCanvas isValid ]
-		description: [ 'Failed to create sparta canvas' ].
-	spartaCanvas transform
-		scaleBy: scaleFactor;
-		push
-]
-
-{ #category : #initialization }
-BlSpartaRenderer >> initializeForForm: aFormSurface [
-	"Initalize sparta canvas to be used with a form surface"
-	| scaleFactor |
-	
-	windowExtent := aFormSurface logicalSize width
-		@ aFormSurface logicalSize height.
-	canvasExtent := aFormSurface physicalSize width
-		@ aFormSurface physicalSize height.
-	scaleFactor := aFormSurface dpiFactor asPoint.
-	spartaCanvas := (self pickCanvasForSurface: aFormSurface)
-		forFormOn: aFormSurface.
-	self
-		assert: [ spartaCanvas isValid ]
-		description: [ 'Failed to create sparta canvas' ].
-	spartaCanvas transform
-		scaleBy: scaleFactor;
-		push
-]
-
-{ #category : #initialization }
-BlSpartaRenderer >> initializeForOpenGL: anOpenGLSurface [
-	"Asks renderer to initialize itself to be used together with an OpenGL surface"
-	| scaleFactor |
-
-	windowExtent := anOpenGLSurface logicalSize width
-		@ anOpenGLSurface logicalSize height.
-	canvasExtent := anOpenGLSurface physicalSize width
-		@ anOpenGLSurface physicalSize height.
-	scaleFactor := anOpenGLSurface dpiFactor asPoint.
-	spartaCanvas := (self pickCanvasForSurface: anOpenGLSurface)
-		forOpenGLOn: anOpenGLSurface.
-	self
-		assert: [ spartaCanvas isValid ]
-		description: [ 'Failed to create sparta canvas' ].
-	spartaCanvas transform
-		scaleBy: scaleFactor;
-		push
-]
-
-{ #category : #initialization }
-BlSpartaRenderer >> initializeHostSpace: aBlHostSpace [
+{ #category : #accessing }
+BlSpartaRenderer class >> pickSurfaceClassFor: aBlHostSpace [
+	"Find a default sparta canvas builder among all available.
+	Return a special null one if there are no available builders"
+	<return: #'BlHostRendererSurface class'>
 	| supportedSurfaces theCanvases theSupportedCanvases theBestCanvas |
 
 	supportedSurfaces := BlHostRendererSurface allSurfaces select: [ :aSurfaceClass | aSurfaceClass supportedBy: aBlHostSpace ].
 	
-	theCanvases := self class availableCanvasBuilderClasses sorted: [ :a :b | a priority < b priority ].
+	theCanvases := self availableCanvasBuilderClasses sorted: [ :a :b | a priority < b priority ].
 
 	theSupportedCanvases := theCanvases
 		select: [ :eachCanvas | supportedSurfaces anySatisfy: [ :eachSurfaceClass | eachSurfaceClass supportedBy: eachCanvas ] ].
@@ -184,67 +85,43 @@ BlSpartaRenderer >> initializeHostSpace: aBlHostSpace [
 	supportedSurfaces := (supportedSurfaces select: [ :aSurfaceClass | aSurfaceClass supportedBy: theBestCanvas ])
 		sort: [ :a :b | a priority < b priority ].
 
-	surface := supportedSurfaces first new.
-	surface initializeOn: aBlHostSpace
+	^ supportedSurfaces first
 ]
 
 { #category : #initialization }
-BlSpartaRenderer >> pickCanvasForSurface: aSurface [
-	<return: #BlSpartaCanvasBuilder>
-	| theCanvases theSupportedCanvases |
-	
-	theCanvases := self class availableCanvasBuilderClasses sorted: [ :a :b | a priority < b priority ].
-	
-	theSupportedCanvases := theCanvases
-		select: [ :eachCanvas | aSurface class supportedBy: eachCanvas ].
-	
-	theSupportedCanvases
-		ifEmpty: [ self error: '{1} is not supported by any canvas' ].
-
-	^ theSupportedCanvases first new
+BlSpartaRenderer >> createBufferSpaceRenderer [
+	^ BlSpartaBufferSpaceRenderer new
 ]
 
-{ #category : #'renderer - rendering' }
-BlSpartaRenderer >> prepareToRender: aSpace [
-	"I check if window extent changed since last rendering step and if yes, recreate resources"
+{ #category : #initialization }
+BlSpartaRenderer >> createFormSpaceRenderer [
+	^ BlSpartaFormSpaceRenderer new
+]
 
-	(session == Smalltalk session and: [ self hasResized not ])
-		ifTrue: [ ^ self ].
+{ #category : #initialization }
+BlSpartaRenderer >> createOpenGLSpaceRenderer [
+	^ BlSpartaOpenGLSpaceRenderer new
+]
 
+{ #category : #initialization }
+BlSpartaRenderer >> initializeForHostSpace: aBlHostSpace [
+	"Initialize this renderer for a given host space.
+	Please note, that it I be called multiple times"
+	
 	session := Smalltalk session.
-	self surface initializeResourcesOn: self
-]
-
-{ #category : #'renderer - testing' }
-BlSpartaRenderer >> supportsBufferSurface [
-	"Return true if this renderer can work with buffer surface, false otherwise"
-	<return: #Boolean>
 	
-	^ self class defaultCanvasBuilder class supportsBufferSurface
-]
-
-{ #category : #'renderer - testing' }
-BlSpartaRenderer >> supportsFormSurface [
-	"Return true if this renderer can work with form surface, false otherwise"
-	<return: #Boolean>
+	"we should mark it as a current one before initializing a canvas as it may rely on opengl context"
+	aBlHostSpace makeCurrent.
 	
-	^ self class defaultCanvasBuilder class supportsFormSurface
-]
+	"create a new surface of a specific type for a given host space"
+	surface := (self class pickSurfaceClassFor: aBlHostSpace) new.
+	surface initializeForHostSpace: aBlHostSpace.
 
-{ #category : #'renderer - testing' }
-BlSpartaRenderer >> supportsOpenGLSurface [
-	"Return true if this renderer can work with OpenGL surface, false otherwise"
-	<return: #Boolean>
-	
-	^ self class defaultCanvasBuilder class supportsOpenGLSurface
-]
+	"creates surfaceRenderer and allocate / initialize a surface"
+	surfaceRenderer := surface createSurfaceRendererOn: aBlHostSpace.
+	surfaceRenderer initializeForSurface: surface.
 
-{ #category : #'renderer - accessing' }
-BlSpartaRenderer >> surface [
-	^ surface
-]
-
-{ #category : #'renderer - accessing' }
-BlSpartaRenderer >> surface: aRendererSurface [
-	surface := aRendererSurface
+	"creates spaceRenderer from the allocated surface"
+	spaceRenderer := surface createSpaceRendererOn: self.
+	spaceRenderer initializeForSurface: surface
 ]

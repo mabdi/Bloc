@@ -137,7 +137,7 @@ BlMockedHostSpace >> hasResized [
 	^ false
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'host space - displaying' }
 BlMockedHostSpace >> hide [
 	visible := false
 ]
@@ -219,7 +219,7 @@ BlMockedHostSpace >> needsRebuild [
 	^ false
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'host space - displaying' }
 BlMockedHostSpace >> open [
 	opened := true.
 	self show

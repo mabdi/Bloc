@@ -1,6 +1,6 @@
 Class {
-	#name : #BlGlutinRenderer,
-	#superclass : #Object,
+	#name : #BlGlutinSurfaceRenderer,
+	#superclass : #BlHostSurfaceRenderer,
 	#instVars : [
 		'window'
 	],
@@ -8,7 +8,7 @@ Class {
 }
 
 { #category : #'private - gl' }
-BlGlutinRenderer >> makeCurrent [
+BlGlutinSurfaceRenderer >> makeCurrent [
 	self window isValid
 		ifFalse: [ ^ self ].
 	
@@ -16,18 +16,18 @@ BlGlutinRenderer >> makeCurrent [
 ]
 
 { #category : #'private - gl' }
-BlGlutinRenderer >> swapBuffers [
+BlGlutinSurfaceRenderer >> swapBuffers [
 	self window swapBuffers
 ]
 
 { #category : #accessing }
-BlGlutinRenderer >> window [
+BlGlutinSurfaceRenderer >> window [
 	<return: #GlutinWindowedContext>
 
 	^ window
 ]
 
 { #category : #accessing }
-BlGlutinRenderer >> window: aGlutinWindowedContext [
+BlGlutinSurfaceRenderer >> window: aGlutinWindowedContext [
 	window := aGlutinWindowedContext
 ]

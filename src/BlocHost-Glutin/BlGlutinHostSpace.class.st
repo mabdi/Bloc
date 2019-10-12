@@ -52,6 +52,20 @@ BlGlutinHostSpace >> convertKeyModifiers: theGlutinModifiers [
 		cmd: theGlutinModifiers logo
 ]
 
+{ #category : #initialization }
+BlGlutinHostSpace >> createBufferSurfaceRenderer [
+	<return: #BlHostSurfaceRenderer>
+	
+	^ BlGlutinBufferSurfaceRenderer new window: self window
+]
+
+{ #category : #initialization }
+BlGlutinHostSpace >> createOpenGLSurfaceRenderer [
+	<return: #BlHostSurfaceRenderer>
+
+	^ BlGlutinOpenGLSurfaceRenderer new window: self window
+]
+
 { #category : #'host space - cursor' }
 BlGlutinHostSpace >> cursor: aCursor [
 	"Change current cursor image/view to the given one"
@@ -103,34 +117,6 @@ BlGlutinHostSpace >> initialize [
 	eventFetcher := BlHostEventFetcher new
 ]
 
-{ #category : #initialization }
-BlGlutinHostSpace >> initializeForBuffer: aBufferSurface [
-	"Asks host space to initialize itself to be used together with a pixel buffer surface.
-	Default implementation simply connects renderer, host space and surface together"
-
-	aBufferSurface hostSpace: self.
-	aBufferSurface hostRenderer: self renderer.
-
-	self renderer surface: aBufferSurface.
-	
-	glutinRenderer := BlGlutinRendererBuffer new window: self window.
-	glutinRenderer initializeForBuffer: aBufferSurface
-]
-
-{ #category : #initialization }
-BlGlutinHostSpace >> initializeForOpenGL: anOpenGLSurface [
-	"Asks host space to initialize itself to be used together with an OpenGL surface.
-	Default implementation simply connects renderer, host space and surface together"
-
-	anOpenGLSurface hostSpace: self.
-	anOpenGLSurface hostRenderer: self renderer.
-
-	self renderer surface: anOpenGLSurface.
-	
-	glutinRenderer := BlGlutinRendererOpenGL new window: self window.
-	glutinRenderer initializeForOpenGL: anOpenGLSurface
-]
-
 { #category : #'event - handling' }
 BlGlutinHostSpace >> keyboardKeyTable [
 	^ BlGlutinKeyboardKeyTable default
@@ -146,6 +132,13 @@ BlGlutinHostSpace >> logicalSize [
 	
 	anExtent := window innerExtent.
 	^ BlHostLogicalSize width: anExtent x height: anExtent y
+]
+
+{ #category : #'host space - rendering' }
+BlGlutinHostSpace >> makeCurrent [
+	"When displaying visual content on the screen very often a window framebuffer must be marked as a current"
+	
+	window makeCurrent
 ]
 
 { #category : #'host space - testing' }
@@ -185,37 +178,10 @@ BlGlutinHostSpace >> position: aPoint [
 ]
 
 { #category : #'host space - rendering' }
-BlGlutinHostSpace >> prepareToRender: aBlSpace onOpenGLSurface: aBlHostRendererOpenGLSurface [
-	"Prepare host space to a given space on an OpenGL surface.
-	By default dispatch directly to the renderer"
-
-	window makeCurrent.
-	self renderer prepareToRender: aBlSpace
-]
-
-{ #category : #'host space - rendering' }
-BlGlutinHostSpace >> presentBufferSurface: aBlHostRendererBufferSurface areas: aCollectionOfAreas [
-	glutinRenderer presentBufferSurface: aBlHostRendererBufferSurface areas: aCollectionOfAreas
-]
-
-{ #category : #'host space - rendering' }
-BlGlutinHostSpace >> presentOpenGLSurface: aBlHostRendererOpenGLSurface areas: aCollectionOfAreas [
-	glutinRenderer presentOpenGLSurface: aBlHostRendererOpenGLSurface areas: aCollectionOfAreas
-]
-
-{ #category : #'host space - rendering' }
 BlGlutinHostSpace >> render: aSpace [
 	"Render a given abstract space on an underlying window or visual area"
-	
-	Glutin critical: [ self renderer render: aSpace ]
-]
 
-{ #category : #'host space - rendering' }
-BlGlutinHostSpace >> render: aBlSpace onOpenGLSurface: aBlHostRendererOpenGLSurface [
-	"Render a given space on an OpenGL surface.
-	By default dispatch directly to the renderer"
-
-	self renderer doRender: aBlSpace dirtyAreas: { 0 @ 0 extent: aBlSpace extent }
+	Glutin critical: [ self renderer render: self ]
 ]
 
 { #category : #'host space - displaying' }

@@ -11,7 +11,7 @@ Class {
 		'position',
 		'title'
 	],
-	#category : #'Bloc-Universe - Host'
+	#category : #'Bloc-Universe - Host Headless'
 }
 
 { #category : #'window - properties' }
@@ -30,6 +30,13 @@ BlHeadlessHostSpace >> borderless: aBoolean [
 { #category : #'host space - displaying' }
 BlHeadlessHostSpace >> close [
 	"do nothing"
+]
+
+{ #category : #initialization }
+BlHeadlessHostSpace >> createBufferSurfaceRenderer [
+	<return: #BlHostSurfaceRenderer>
+	
+	^ BlHeadlessBufferSurfaceRenderer new
 ]
 
 { #category : #'host space - cursor' }
@@ -76,7 +83,7 @@ BlHeadlessHostSpace >> fullsize: aBoolean [
 	See ${method:TBlSpaceProperties>>#fullsize}"
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'host space - displaying' }
 BlHeadlessHostSpace >> hide [
 	"do nothing"
 ]
@@ -143,7 +150,7 @@ BlHeadlessHostSpace >> needsRebuild [
 	^ false
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'host space - displaying' }
 BlHeadlessHostSpace >> open [
 	"do nothing"
 ]

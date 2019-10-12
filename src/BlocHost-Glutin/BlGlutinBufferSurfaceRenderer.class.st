@@ -1,6 +1,6 @@
 Class {
-	#name : #BlGlutinRendererBuffer,
-	#superclass : #BlGlutinRenderer,
+	#name : #BlGlutinBufferSurfaceRenderer,
+	#superclass : #BlGlutinSurfaceRenderer,
 	#instVars : [
 		'renderer'
 	],
@@ -8,37 +8,37 @@ Class {
 }
 
 { #category : #'host space - drawing' }
-BlGlutinRendererBuffer >> initializeForBuffer: aBlHostRendererBufferSurface [
+BlGlutinBufferSurfaceRenderer >> initializeForSurface: aSurface [
 	| aForm thePixels anExtent |
 	
 	self
 		assert: [ self window isNotNil ]
 		description: [ 'Window must be set!' ].
-		
+
 	renderer
 		ifNil: [ renderer := GlutinGLBufferRenderer new window: self window ].
 
-	anExtent := aBlHostRendererBufferSurface canvasExtent.
+	anExtent := aSurface physicalSize asPoint.
 	
 	aForm := Form extent: anExtent depth: 32.
 
 	thePixels := FFIExternalArray externalNewType: FFIUInt32 size: aForm stride * aForm height.
 	thePixels autoRelease.
 
-	aBlHostRendererBufferSurface
+	aSurface
 		buffer: thePixels getHandle;
 		stride: aForm stride;
 		extent: anExtent
 ]
 
 { #category : #'host space - drawing' }
-BlGlutinRendererBuffer >> presentBufferSurface: aBlHostRendererBufferSurface areas: aCollectionOfAreas [
+BlGlutinBufferSurfaceRenderer >> renderSurface: aSurface damaged: aCollectionOfRectangles [
 	| aBuffer |
 	
 	aBuffer := GlutinGLBuffer new
-		extent: aBlHostRendererBufferSurface extent;
-		stride: aBlHostRendererBufferSurface stride;
-		pixels: aBlHostRendererBufferSurface buffer.
+		extent: aSurface extent;
+		stride: aSurface stride;
+		pixels: aSurface buffer.
 	
-	renderer presentBuffer: aBuffer areas: aCollectionOfAreas
+	renderer presentBuffer: aBuffer areas: aCollectionOfRectangles
 ]
