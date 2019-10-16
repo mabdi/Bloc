@@ -89,8 +89,8 @@ BlText >> asString [
 	There is no guarantee that the size of the resulting string is the same
 	as of this text"
 	<return: #String>
-
-    ^ String streamContents: [ :aStream |
+	
+	^ String streamContents: [ :aStream |
 		self do: [ :anItem |
 			anItem isCharacter
 				ifTrue: [ aStream nextPut: anItem ]
