@@ -84,3 +84,13 @@ BlRopedTextExamples >> textWithAttributes [
 	^ text
 
 ]
+
+{ #category : #examples }
+BlRopedTextExamples >> textWithCr [
+	<gtExample>
+	| text |
+
+	text := ('Hello', String crlf, String tab, 'World') asRopedText.
+
+	^ text
+]

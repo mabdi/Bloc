@@ -10,7 +10,7 @@ Class {
 	#instVars : [
 		'rope'
 	],
-	#category : 'Bloc-Text-Rope-Text'
+	#category : #'Bloc-Text-Rope-Text'
 }
 
 { #category : #'instance creation' }
@@ -22,17 +22,14 @@ BlRopedText class >> rope: aRope [
 
 { #category : #'instance creation' }
 BlRopedText class >> string: aString [
-	^ self rope: (BlCollectionRope collection: aString)
+	<return: #BlRopedText>
+
+	^ self rope: (BlCollectionRope collection: (BlTextStringNormalizer new process: aString))
 ]
 
 { #category : #'text - converting' }
 BlRopedText >> asRopedText [
 	^ self
-]
-
-{ #category : #'text - converting' }
-BlRopedText >> asString [
-	^ rope asString
 ]
 
 { #category : #'text - accessing' }
@@ -157,7 +154,7 @@ BlRopedText >> initializeWith: aRope [
 
 { #category : #'text - modifications' }
 BlRopedText >> insertString: aString at: anIndex [
-	rope := rope insertItems: aString at: anIndex.
+	rope := rope insertItems: (BlTextStringNormalizer new process: aString) at: anIndex.
 	self notifyStringInserted: aString at: anIndex
 ]
 
@@ -166,10 +163,11 @@ BlRopedText >> insertText: aText at: anIndex [
 	self
 		assert: [ aText isKindOf: BlText ]
 		description: [ 'Trying to insert a {1} instead of {2}'
-			format: { aText class name . BlText name } ].
-
+				format:
+					{aText class name.
+					BlText name} ].
 	rope := rope insert: aText rope at: anIndex.
-	self notifyStringInserted: aText asString at: anIndex
+	self notifyStringInserted: aText characters asString at: anIndex
 ]
 
 { #category : #'text - testing' }
