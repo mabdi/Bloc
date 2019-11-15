@@ -983,6 +983,23 @@ BlElement >> detachChild: anElement [
 	self children remove: anElement
 ]
 
+{ #category : #'children add/remove' }
+BlElement >> detachFromParentWhile: aBlock [
+	"Detach myself from a parent while evaluating a given block.
+	I attach myself at the same position as before.
+	Directly evaluate a block if I don't have a parent"
+	
+	self hasParent
+		ifFalse: [ aBlock value ]
+		ifTrue: [
+			| aParentElement aChildIndex |
+			
+			aParentElement := self parent.
+			aChildIndex := aParentElement childIndexOf: self.
+			aParentElement detachChild: self.
+			[ aBlock value ] ensure: [ aParentElement attachChild: self at: aChildIndex ] ]
+]
+
 { #category : #'children dispatching' }
 BlElement >> dispatchAddedToParent [
 	"Sent after I was added to another element as direct child.
@@ -1671,6 +1688,11 @@ BlElement >> invalidate [
 	"we are guarding owerselves from unnecessary computations of rectangle transformation"
 	self isAttachedToSceneGraph
 		ifFalse: [ ^ self ].
+
+	"If I don't have a parent and I am not the root of the space it means
+	that I am detached from space. no need to invalidate (users probably know what they are doing)"
+	(self hasParent not and: [ self space root ~~ self ])
+		ifTrue: [ ^ self ].
 
 	self invalidRect: (self invalidationBounds: self class invalidationBounds)
 
