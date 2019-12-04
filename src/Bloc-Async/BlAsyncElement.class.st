@@ -61,13 +61,6 @@ Class {
 	#category : #'Bloc-Async'
 }
 
-{ #category : #controlling }
-BlAsyncElement class >> ifEnabledInstanceDo: anAsyncBlock otherwise: aSyncBlock [
-	^ BlUseAsyncFeatures
-		ifEnabledDo: [ anAsyncBlock value: self new ]
-		otherwise: aSyncBlock
-]
-
 { #category : #accessing }
 BlAsyncElement >> asyncException [
 	^ asyncException
@@ -151,7 +144,7 @@ BlAsyncElement >> queueAsyncUpdate [
 	"Queue a task to update the receiver's state."
 
 	self needsUpdate ifFalse: [ ^self ].
-	'scheduling async update' traceCr.
+
 	BlUseAsyncFeatures 
 		ifEnabledDo: [ self taskPool schedule: self queueEntry ] 
 		otherwise: [ self queueEntry execute ].
