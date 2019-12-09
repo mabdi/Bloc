@@ -6,23 +6,37 @@ I am designed for Model-based User Interface Testing
 Class {
 	#name : #BlDevScripter,
 	#superclass : #Object,
+	#traits : 'TBlDevScripterStep',
+	#classTraits : 'TBlDevScripterStep classTrait',
 	#instVars : [
 		'element',
 		'space',
-		'rootTask',
-		'events'
+		'events',
+		'rootStep'
 	],
 	#category : #'Bloc-DevTool-Scripter'
 }
 
 { #category : #tasks }
+BlDevScripter >> addStep: aScripterStep [
+	<return: #BlDevScripterStep>
+	^ rootStep addStep: aScripterStep
+]
+
+{ #category : #tasks }
 BlDevScripter >> check [
-	^ rootTask addTask: (BlDevScripterMultipleCheckTask new)
+	^ self addStep: (BlDevScripterMultipleCheckStep new)
 ]
 
 { #category : #tasks }
 BlDevScripter >> click [
-	^ rootTask addTask: (BlDevScripterClickTask new)
+	^ self addStep: (BlDevScripterClickStep new)
+]
+
+{ #category : #actions }
+BlDevScripter >> continue [
+	self pulse.
+	rootStep continueOn: self
 ]
 
 { #category : #accessing }
@@ -61,7 +75,17 @@ BlDevScripter >> gtEventsFor: aView [
 	<gtView>
 	self events ifNil: [ ^ aView empty ].
 	^ (self events gtItemsFor: aView)
-		title: 'Events'
+		title: 'Events';
+		priority: 3
+]
+
+{ #category : #'gt-extension' }
+BlDevScripter >> gtReveresedEventsFor: aView [
+	<gtView>
+	self events ifNil: [ ^ aView empty ].
+	^ (self events reversed gtItemsFor: aView)
+		title: 'Events (Reversed)';
+		priority: 4
 ]
 
 { #category : #'gt-extension' }
@@ -77,30 +101,46 @@ BlDevScripter >> gtSpaceFor: aView [
 ]
 
 { #category : #'gt-extension' }
+BlDevScripter >> gtSpaceTasksFor: aView [
+	<gtView>
+	space ifNil: [ ^ aView empty ].
+	self spaceTasks ifEmpty: [ ^ aView empty ].
+	^ (self spaceTasks gtItemsFor: aView)
+		title: 'Space Tasks'
+]
+
+{ #category : #'gt-extension' }
 BlDevScripter >> gtTreeFor: aView [
 	<gtView>
 	
-	^ rootTask gtTreeFor: aView
+	^ rootStep gtTreeFor: aView
 ]
 
 { #category : #initialization }
 BlDevScripter >> initialize [
 	super initialize.
 	
-	rootTask := BlDevScripterCompositeTask new.
+	rootStep := BlDevScripterMultipleStep new.
 	space := BlSpace new.
+	space title: 'Scripter'.
+	space extent: 800 @ 600.
 	events := OrderedCollection new
 ]
 
 { #category : #actions }
 BlDevScripter >> play [
 	self pulse.
-	rootTask playIndicatingStateOn: self
+	rootStep playIndicatingStateOn: self
 ]
 
 { #category : #actions }
 BlDevScripter >> pulse [
 	space pulse
+]
+
+{ #category : #accessing }
+BlDevScripter >> spaceTasks [
+	^ space taskQueue tasks
 ]
 
 { #category : #accessing }
@@ -112,4 +152,24 @@ BlDevScripter >> spaceWithElement [
 	self element space = space ifFalse: [ 
 		space addChild: self elementWithoutParent ].
 	^ space
+]
+
+{ #category : #tasks }
+BlDevScripter >> substep [
+	^ self addStep: (BlDevScripterMultipleStep new)
+]
+
+{ #category : #actions }
+BlDevScripter >> syncContinue [
+	BlUseAsyncFeatures disableDuring: [ self continue ].
+]
+
+{ #category : #actions }
+BlDevScripter >> syncPlay [
+	BlUseAsyncFeatures disableDuring: [ self play ].
+]
+
+{ #category : #tasks }
+BlDevScripter >> type [
+	^ self addStep: BlDevScriptTypeTextStep new
 ]
