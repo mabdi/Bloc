@@ -10,14 +10,16 @@ BaselineOfBlocCore >> baseline: spec [
 	spec for: #'common' do: [
 		spec 
 			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples:v0.7.9/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-examples/src' ];
 			baseline: 'GToolkitResourcesUtility' with: [
-				spec repository: 'github://feenkcom/gtoolkit-utility:v0.7.13/src' ];
+				spec repository: 'github://feenkcom/gtoolkit-utility/src' ];
 			baseline: 'Beacon' with: [
-				spec repository: 'github://feenkcom/pharo-beacon:38cb3436c9593de5abd580b8bb23d06753afdb33/repository' ].
+				spec repository: 'github://feenkcom/pharo-beacon/repository' ];
+			baseline: 'GToolkitFenster' with: [
+				spec repository: 'github://feenkcom/gtoolkit-fenster/src' ].
 		spec 
 			package: #Bloc with: [
-				spec requires: #(#Beacon ). ];
+				spec requires: #(#Beacon GToolkitFenster) ];
 			package: #'BlocHost-Mock' with: [
 				spec requires: #(#Bloc ). ];
 			package: #'Bloc-Tests' with: [
