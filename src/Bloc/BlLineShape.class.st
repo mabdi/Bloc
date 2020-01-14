@@ -40,6 +40,20 @@ BlLineShape >> asElementIn: aContainer [
 ]
 
 { #category : #'api - transformations' }
+BlLineShape >> duplicate [
+	<return: #BlVectorShape>
+	| aNewLine |
+	
+	aNewLine := BlLineShape new
+		fromPoint: self fromPoint;
+		toPoint: self toPoint.
+	
+	self parentDo: [ :aParentShape | aParentShape addShape: aNewLine ].
+	
+	^ aNewLine
+]
+
+{ #category : #'api - transformations' }
 BlLineShape >> injectLineAt: aFloat length: aLength [
 	<return: #BlVectorShape>
 	| aNewShape aLeftSplitPoint aRightSplitPoint aRightLine aLeftLine aCenterLine |
@@ -85,6 +99,15 @@ BlLineShape >> injectLineAt: aFloat length: aLength [
 BlLineShape >> moveBy: aDelta [
 	self fromPoint moveBy: aDelta.
 	self toPoint moveBy: aDelta
+]
+
+{ #category : #printing }
+BlLineShape >> printOn: aStream [
+	aStream
+		nextPutAll: 'Line from ';
+		print: self fromPoint;
+		nextPutAll: ' to ';
+		print: self toPoint
 ]
 
 { #category : #'api - transformations' }

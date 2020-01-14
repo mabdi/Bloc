@@ -18,11 +18,32 @@ BlCompositeShape >> asElementIn: aContainer [
 	self shapes do: [ :each | each asElementIn: aContainer ]
 ]
 
+{ #category : #'gt-extension' }
+BlCompositeShape >> gtShapesFor: aView [
+	<gtView>
+	
+	^ aView list
+		title: 'Shapes';
+		priority: 10;
+		items: [ self shapes ]
+]
+
 { #category : #initialization }
 BlCompositeShape >> initialize [
 	super initialize.
 	
 	shapes := OrderedCollection new
+]
+
+{ #category : #'api - geometry' }
+BlCompositeShape >> myBounds [
+	<return: #Rectangle or: nil>
+	
+	^ nil
+]
+
+{ #category : #'api - geometry' }
+BlCompositeShape >> normalizeMeIn: aRectangle [
 ]
 
 { #category : #'api - shapes' }
@@ -37,6 +58,14 @@ BlCompositeShape >> replaceShape: anOldShape with: aNewShape [
 	aNewShape parent: self.
 
 	shapes replaceAll: anOldShape with: aNewShape
+]
+
+{ #category : #'api - geometry' }
+BlCompositeShape >> scaleMeBy: aScalePoint [
+]
+
+{ #category : #'api - geometry' }
+BlCompositeShape >> scaleMeToFit: aRectangle [
 ]
 
 { #category : #'api - shapes' }

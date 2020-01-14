@@ -57,52 +57,84 @@ BlRectangleShape class >> rectangle: aRectangle [
 
 { #category : #accessing }
 BlRectangleShape >> appendPathTo: aPathBuilder [
-	self topEdge appendPathTo: aPathBuilder.
-	self topRightCorner appendPathTo: aPathBuilder.
-	self rightEdge appendPathTo: aPathBuilder.
-	self bottomRightCorner appendPathTo: aPathBuilder.
-	self bottomEdge appendPathTo: aPathBuilder.
-	self bottomLeftCorner appendPathTo: aPathBuilder.
-	self leftEdge appendPathTo: aPathBuilder.
-	self topLeftCorner appendPathTo: aPathBuilder
+	
+	self shapesOfInterest
+		do: [ :eachShape | eachShape appendPathTo: aPathBuilder ].
+	
+	aPathBuilder close.
+	
+	(self shapes copyWithoutAll: self shapesOfInterest)
+		do: [ :eachShape | eachShape appendPathTo: aPathBuilder ]
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> bottomEdge [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleEdgeAttribute value: #bottom
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> bottomLeftCorner [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleCornerAttribute value: #bottomLeft
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> bottomRightCorner [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleCornerAttribute value: #bottomRight
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> leftEdge [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleEdgeAttribute value: #left
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> rightEdge [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleEdgeAttribute value: #right
 ]
 
 { #category : #'api - geometry' }
+BlRectangleShape >> shapesOfInterest [
+	<return: #Collection of: #BlVectorShape>
+	
+	^ {
+		self topEdge.
+		self topRightCorner.
+		self rightEdge.
+		self bottomRightCorner.
+		self bottomEdge.
+		self bottomLeftCorner.
+		self leftEdge.
+		self topLeftCorner
+	}
+]
+
+{ #category : #'api - geometry' }
 BlRectangleShape >> topEdge [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleEdgeAttribute value: #top
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> topLeftCorner [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleCornerAttribute value: #topLeft
 ]
 
 { #category : #'api - geometry' }
 BlRectangleShape >> topRightCorner [
+	<return: #BlVectorShape>
+
 	^ self shapeWithAttribute: RectangleCornerAttribute value: #topRight
 ]
