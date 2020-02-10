@@ -7,6 +7,11 @@ Class {
 	#category : #'Bloc-TaskIt-Commands'
 }
 
+{ #category : #accessing }
+BlTktCommand class >> defaultName [
+	^ 'Default'
+]
+
 { #category : #factory }
 BlTktCommand class >> null [
 	^ BlTktNullCommand uniqueInstance
@@ -16,6 +21,13 @@ BlTktCommand class >> null [
 BlTktCommand >> catchingErrors [
 	"Return an error or collections of errors to catch during a command execution"
 	^ Error
+]
+
+{ #category : #initialization }
+BlTktCommand >> initialize [
+	super initialize.
+	
+	name := self class defaultName
 ]
 
 { #category : #accessing }
