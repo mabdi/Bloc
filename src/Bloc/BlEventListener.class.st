@@ -45,17 +45,9 @@ BlEventListener >> dragStartEvent: anEvent [
 BlEventListener >> dropEvent: anEvent [
 ]
 
-{ #category : #'selection handlers' }
-BlEventListener >> elementSelectionAcquiredEvent: anEvent [
-]
-
-{ #category : #'selection handlers' }
-BlEventListener >> elementSelectionLostEvent: anEvent [
-]
-
 { #category : #'as yet unclassified' }
 BlEventListener >> eventsToHandle [
-	^ { BlUIEvent }
+	^ BlUIEvent allSubclasses
 ]
 
 { #category : #'focus handlers' }
