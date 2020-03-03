@@ -6,6 +6,21 @@ You can use ${class:BlElementRemovedFromSceneGraphEvent}$ to perform specific ac
 "
 Class {
 	#name : #BlElementRemovedFromSceneGraphEvent,
-	#superclass : #BlSceneInformingElementEvent,
-	#category : #'Bloc-Events'
+	#superclass : #BlElementEvent,
+	#category : #'Bloc-Events-Type-Element'
 }
+
+{ #category : #'api - enable / disable' }
+BlElementRemovedFromSceneGraphEvent class >> enableIn: anObject [
+	anObject enableRemovedFromSceneGraph
+]
+
+{ #category : #'api - enable / disable' }
+BlElementRemovedFromSceneGraphEvent class >> wantedIn: anObject [
+	^ anObject wantsRemovedFromSceneGraph
+]
+
+{ #category : #sending }
+BlElementRemovedFromSceneGraphEvent >> sendTo: anObject [
+	anObject elementRemovedFromSceneGraphEvent: self
+]

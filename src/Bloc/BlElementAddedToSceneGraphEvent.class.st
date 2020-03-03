@@ -6,6 +6,24 @@ You can use ${class:BlElementAddedToSceneGraphEventHandler}$ to perform specific
 "
 Class {
 	#name : #BlElementAddedToSceneGraphEvent,
-	#superclass : #BlSceneInformingElementEvent,
-	#category : #'Bloc-Events'
+	#superclass : #BlElementEvent,
+	#instVars : [
+		'element'
+	],
+	#category : #'Bloc-Events-Type-Element'
 }
+
+{ #category : #'api - enable / disable' }
+BlElementAddedToSceneGraphEvent class >> enableIn: anObject [
+	anObject enableAddedToSceneGraph
+]
+
+{ #category : #'api - enable / disable' }
+BlElementAddedToSceneGraphEvent class >> wantedIn: anObject [
+	^ anObject wantsAddedToSceneGraph
+]
+
+{ #category : #sending }
+BlElementAddedToSceneGraphEvent >> sendTo: anObject [
+	anObject elementAddedToSceneGraphEvent: self
+]
