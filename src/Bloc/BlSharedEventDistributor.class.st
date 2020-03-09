@@ -13,8 +13,8 @@ Class {
 	#superclass : #BlBasicEventHandler,
 	#instVars : [
 		'elements',
-		'events',
-		'handledEvents'
+		'handledEvents',
+		'shouldHandle'
 	],
 	#category : #'Bloc-Events-Handler'
 }
@@ -32,27 +32,36 @@ BlSharedEventDistributor class >> shareEvents: aCollectionOfEvents [
 { #category : #'private - coordinates' }
 BlSharedEventDistributor >> adjustPosition: aNewEvent from: anOldEvent [
 	| anOldBounds anOldDiagonal aNewBounds aNewDiagonal aRatio aNewPosition |
-	(anOldEvent currentTarget isKindOf: BlElement) ifFalse: [ ^ self ].
+	
+	(anOldEvent currentTarget isKindOf: BlElement)
+		ifFalse: [ ^ self ].
+	
 	anOldBounds := anOldEvent currentTarget boundsInSpace.
 	anOldDiagonal := anOldBounds topLeft - anOldBounds bottomRight.
 	aNewBounds := aNewEvent target boundsInSpace.
 	aNewDiagonal := aNewBounds topLeft - aNewBounds bottomRight.
-	aRatio := anOldDiagonal / aNewDiagonal.
+	aRatio := ((aNewDiagonal x closeTo: 0) or: [ aNewDiagonal y closeTo: 0])
+		ifTrue: [ 1 ]
+		ifFalse: [ anOldDiagonal / aNewDiagonal ].
 	aNewPosition := (anOldEvent position - anOldBounds topLeft) * aRatio + aNewBounds topLeft.
 	aNewEvent position: aNewPosition.
-	aNewEvent screenPosition: anOldEvent screenPosition + (aNewPosition - anOldEvent position).
-	
+	aNewEvent screenPosition: anOldEvent screenPosition + (aNewPosition - anOldEvent position)
 ]
 
 { #category : #'api - event managing' }
 BlSharedEventDistributor >> dispatch: anEvent on: anElement [
 	| aNewEvent |
-	anElement isAttachedToSceneGraph ifFalse: [ ^ self ].
+
+	shouldHandle
+		ifFalse: [ ^ self ].
+	
 	aNewEvent := anEvent newCopyFor: anElement.
-	(anEvent isKindOf: BlUIEvent) ifTrue: [ 
+	(anEvent isKindOf: BlUIEvent) ifTrue: [
 		self adjustPosition: aNewEvent from: anEvent ].
-	events add: aNewEvent.
-	BlEvent fireEvent: aNewEvent target: anElement.
+
+	shouldHandle := false.
+	[ anElement dispatchEvent: aNewEvent ]
+		ensure: [ shouldHandle := true ]
 ]
 
 { #category : #accessing }
@@ -60,18 +69,9 @@ BlSharedEventDistributor >> elements [
 	^ elements asArray
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'api - accessing' }
 BlSharedEventDistributor >> eventsToHandle [
-	^ events
-]
-
-{ #category : #'gt-extension' }
-BlSharedEventDistributor >> gtProcessedEventsFor: aView [
-	<gtView>
-	events ifNil: [ ^ aView empty ].
-	events ifEmpty: [ ^ aView empty ].
-	^ (events gtItemsFor: aView)
-		title: 'Processed Events'
+	^ handledEvents
 ]
 
 { #category : #'gt-extension' }
@@ -85,19 +85,21 @@ BlSharedEventDistributor >> gtRegisteredElementsFor: aView [
 
 { #category : #'api - event managing' }
 BlSharedEventDistributor >> handleEvent: anEvent [
-	(events includes: anEvent) ifTrue: [ ^ self ].
-	events add: anEvent.
+
+	shouldHandle
+		ifFalse: [ ^ self ].
+
 	elements do: [ :eachElement | 
-		anEvent currentTarget = eachElement ifFalse: [ 
-			self dispatch: anEvent on: eachElement ] ]
+		anEvent currentTarget = eachElement
+			ifFalse: [ self dispatch: anEvent on: eachElement ] ]
 ]
 
 { #category : #initialization }
 BlSharedEventDistributor >> initialize [
 	super initialize.
 	elements := Set new.
-	events := WeakSet new.
 	handledEvents := #().
+	shouldHandle := true
 ]
 
 { #category : #'api - hooks' }
@@ -107,7 +109,9 @@ BlSharedEventDistributor >> onInstalledIn: anObject [
 
 { #category : #'api - hooks' }
 BlSharedEventDistributor >> onUninstalledIn: anObject [
-	elements remove: anObject ifAbsent: [ "ignore" ]
+	elements
+		remove: anObject
+		ifAbsent: [ "ignore" ]
 ]
 
 { #category : #accessing }
@@ -118,10 +122,14 @@ BlSharedEventDistributor >> shareEvents: aCollectionOfEvents [
 	self 
 		assert: [ aCollectionOfEvents isNotEmpty ] 
 		description: [ 'Handled events must be a non-empty collection' ].
+
 	handledEvents := aCollectionOfEvents
 ]
 
 { #category : #'api - event managing' }
 BlSharedEventDistributor >> wantsEvent: anEvent [
+	shouldHandle
+		ifFalse: [ ^ false ].
+
 	^ handledEvents includes: anEvent class
 ]
