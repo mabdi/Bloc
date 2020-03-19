@@ -63,45 +63,6 @@ BlTextParagraphSpan >> finalize [
 	textRun := nil
 ]
 
-{ #category : #'as yet unclassified' }
-BlTextParagraphSpan >> gtPositionsAtIndicesFor: aView [
-	<gtView>
-	
-	^ aView sparta
-		title: 'Positions';
-		priority: 10;
-		matchParent;
-		rendering: [ :aCanvas :anElement |
-			| aScale |
-			
-			aScale := (aCanvas extent min / self extent max) * 0.9.
-			
-			aCanvas transform
-				by: [ :t |
-					t scaleBy: aScale.
-					t translateBy: (0@self top negated) + 2 ]
-				during: [
-					self drawOnSpartaCanvas: aCanvas.
-					0 to: self spanLength do: [ :eachIndex |
-						| aPosition |
-						
-						aPosition := self positionAt: eachIndex on: aCanvas.
-						aCanvas stroke
-							path: (aCanvas shape line: aPosition x @ self top to: aPosition x @ (self top + self height));
-							width: 1.0 / aScale;
-							paint: (Color black alpha: 0.5);
-							draw.
-							
-						aCanvas stroke
-							path: (self bounds);
-							width: 1.0 / aScale;
-							paint: (Color black alpha: 0.5);
-							draw
-						
-					] ]
-		]
-]
-
 { #category : #geometry }
 BlTextParagraphSpan >> indexAtPosition: aPoint [
 	self deprecated: 'Use indexAtPosition:on:'
@@ -133,7 +94,7 @@ BlTextParagraphSpan >> indexAtPosition: aPoint on: aCanvas [
 				measureSpan: aSubSpan
 				on: aCanvas.
 			
-			(aWidth closeTo: aParagraph advance precision: 0.1)
+			(aWidth closeTo: aParagraph advance epsilon: 0.1)
 				ifTrue: [ 0 ]
 				ifFalse: [ (aWidth - aParagraph advance) sign ] ]
 		"exact match"
@@ -236,6 +197,13 @@ BlTextParagraphSpan >> normalize: aScale [
 	advance := advance ceilingTicks: aScale
 ]
 
+{ #category : #accessing }
+BlTextParagraphSpan >> paragraph: aTextParagraph [
+	super paragraph: aTextParagraph.
+
+	self attributes do: [ :eachAttribute | eachAttribute applyOnTextParagraph: aTextParagraph from: self from to: self to ]
+]
+
 { #category : #geometry }
 BlTextParagraphSpan >> positionAt: anIndex [
 	self deprecated: 'Use positionAt:on:'
@@ -252,11 +220,9 @@ BlTextParagraphSpan >> positionAt: anIndex on: aCanvas [
 	(anIndex = (self from - 1))
 		ifTrue: [ ^ aPositionX @ aPositionY ].
 	(anIndex = self to)
-		ifTrue: [ ^ (aPositionX + (self advance max: self width)) @ aPositionY ].
+		ifTrue: [ ^ (aPositionX + self advance) @ aPositionY ].
 
 	aSpanIndex := anIndex - self from + 1.
-	aSpanIndex isZero
-		ifTrue: [ ^ aPositionX @ aPositionY ].
 
 	aMeasurer := self measurer.
 
@@ -267,8 +233,8 @@ BlTextParagraphSpan >> positionAt: anIndex on: aCanvas [
 	aMeasuredSpan := aMeasurer
 		measureSpan: aSubSpan
 		on: aCanvas.
-
-	^ (aPositionX + (aMeasuredSpan advance max: aMeasuredSpan width) + (self left min: 0) + (aMeasuredSpan left min: 0)) @ aPositionY
+	
+	^ (aPositionX + aMeasuredSpan advance) @ aPositionY
 ]
 
 { #category : #printing }
