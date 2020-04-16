@@ -19,10 +19,10 @@ BaselineOfBlocCore >> baseline: spec [
 				spec repository: 'github://feenkcom/gtoolkit-fenster:v0.6.10/src' ].
 		spec 
 			package: #Bloc with: [
-				spec requires: #(#Beacon #GToolkitFenster ). ];
+				spec requires: #('Beacon' 'GToolkitFenster' ). ];
 			package: #'BlocHost-Mock' with: [
 				spec requires: #(#Bloc ). ];
 			package: #'Bloc-Tests' with: [
-				spec requires: #(#Bloc #GToolkitExamplesEngine 'BlocHost-Mock' ). ]. ].
+				spec requires: #(#Bloc 'GToolkitExamplesEngine' #'BlocHost-Mock' ). ]. ].
 
 ]
