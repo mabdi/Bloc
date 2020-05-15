@@ -22,7 +22,7 @@ BlFrameLayoutConstraintsVertical >> alignCenter [
 
 { #category : #alignment }
 BlFrameLayoutConstraintsVertical >> alignCenterAt: aUnitCoordinateNumber [
-	"Align the center of the element horizontally with a unit-coordinate inside of the parent"
+	"Align the center of the element vertically with a unit-coordinate inside of the parent"
 
 	alignment := BlVerticalCoordinateTopAlignment new
 		coordinate: aUnitCoordinateNumber;
@@ -30,8 +30,22 @@ BlFrameLayoutConstraintsVertical >> alignCenterAt: aUnitCoordinateNumber [
 ]
 
 { #category : #alignment }
+BlFrameLayoutConstraintsVertical >> alignNone [
+	alignment := BlElementAlignment vertical null
+]
+
+{ #category : #alignment }
 BlFrameLayoutConstraintsVertical >> alignTop [
 	alignment := BlElementAlignment vertical start
+]
+
+{ #category : #alignment }
+BlFrameLayoutConstraintsVertical >> alignTopAt: aUnitCoordinateNumber [
+	"Align the top of the element vertically with a unit-coordinate inside of the parent"
+
+	alignment := BlVerticalCoordinateTopAlignment new
+		coordinate: aUnitCoordinateNumber;
+		relativeAlignment: BlElementAlignment vertical start
 ]
 
 { #category : #accessing }
@@ -47,8 +61,8 @@ BlFrameLayoutConstraintsVertical >> alignment: aBlElementAlignment [
 { #category : #initialization }
 BlFrameLayoutConstraintsVertical >> initialize [
 	super initialize.
-	
-	alignment := BlElementAlignment vertical null.
+
+	alignment := BlElementAlignment vertical start.
 	weight := 1.0
 ]
 
