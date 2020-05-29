@@ -2,7 +2,8 @@ Class {
 	#name : #BlSpartaOpenGLCompositingSpaceRenderer,
 	#superclass : #BlSpartaSpaceRenderer,
 	#instVars : [
-		'compositor'
+		'compositor',
+		'rootLayer'
 	],
 	#category : #'Bloc-Compositor-Painter'
 }
@@ -21,19 +22,18 @@ BlSpartaOpenGLCompositingSpaceRenderer >> initializeForSurface: aSurface [
 	self
 		initializeCanvas: aSpartaCanvas
 		surface: aSurface.
-		
+
 	compositor ifNotNil: #release.
-	compositor := SkiaCompositor workers: 1"accelerated: (GlutinEventsFetcher default eventLoop) windowedContext: aSurface context workers: 6"
+	compositor := SkiaCompositor new.
+	rootLayer := BlCompositionContainerLayer new
 ]
 
 { #category : #rendering }
 BlSpartaOpenGLCompositingSpaceRenderer >> renderSpace: aSpace [
 	"Render a space and return a collection of damaged rectangles"
 	<return: #Collection of: #Rectangle>
-	| start |
-	
-	start := DateAndTime now.
-	
+	| painter skiaLayer |
+
 	self isValid
 		ifFalse: [ ^ self ].
 		
@@ -43,39 +43,22 @@ BlSpartaOpenGLCompositingSpaceRenderer >> renderSpace: aSpace [
 	compositor isNull
 		ifTrue: [ ^ self ].
 
+	rootLayer removeAllLayers.
+	
+	painter := BlCompositionPainter new bounds: (0@0 extent: aSpace extent).
+	painter containerLayer: rootLayer.
+	
+	aSpace root fullPaintOn: painter offset: 0@0.
+	painter stopRecording.
+	
+	skiaLayer := rootLayer asSkiaLayer.
+	
 	spartaCanvas transform
 		by: [ :t | t scaleBy: scaleFactor asPoint ]
-		during: [
-			| rootLayer painter skiaLayer recordSstart |
-			
-			recordSstart := DateAndTime now.
-			
-			rootLayer := BlCompositionContainerLayer new.
-			painter := BlCompositionPainter new bounds: (0@0 extent: aSpace extent).
-			painter containerLayer: rootLayer.
-			
-			aSpace root fullPaintOn: painter offset: 0@0.
-			painter stopRecording.
-
-			skiaLayer := rootLayer asSkiaLayer.
-			
-			"NonInteractiveTranscript stdout
-				nextPutAll: 'Recording done! ';
-				nextPutAll: ((DateAndTime now - recordSstart) asMicroseconds / 1000.0) asString;
-				nextPutAll: 'ms';
-				cr."
-			
-			compositor draw: skiaLayer on: spartaCanvas.
-			skiaLayer release.
-		].
-
+		during: [ compositor draw: skiaLayer on: spartaCanvas ].
+		
 	spartaCanvas flush.
-	
-	"NonInteractiveTranscript stdout
-		nextPutAll: 'Render done! ';
-		nextPutAll: ((DateAndTime now - start) asMicroseconds / 1000.0) asString;
-		nextPutAll: 'ms';
-		cr."
+	skiaLayer release.
 	
 	^ (self damagedAreasOf: aSpace)
 ]

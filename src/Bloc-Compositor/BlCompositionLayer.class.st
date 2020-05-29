@@ -2,8 +2,7 @@ Class {
 	#name : #BlCompositionLayer,
 	#superclass : #Object,
 	#instVars : [
-		'parent',
-		'creatorElement'
+		'parent'
 	],
 	#category : #'Bloc-Compositor-Layers'
 }
@@ -21,16 +20,6 @@ BlCompositionLayer >> attachToParent: aCompositionLayer [
 { #category : #accessing }
 BlCompositionLayer >> children [
 	^ #()
-]
-
-{ #category : #accessing }
-BlCompositionLayer >> creatorElement [
-	^ creatorElement
-]
-
-{ #category : #accessing }
-BlCompositionLayer >> creatorElement: anObject [
-	creatorElement := anObject
 ]
 
 { #category : #'as yet unclassified' }
@@ -100,6 +89,7 @@ BlCompositionLayer >> paintTreeWith: view [
 							fitWidth;
 							background: Color white;
 							margin: (BlInsets top: 10);
+							border: (each needsCache ifTrue: [ BlBorder paint: Color red width: 1 ] ifFalse: [ BlBorder empty ]);
 							look: BrShadowLook new;
 							constraintsDo: [ :c |
 								c horizontal exact: 100.
