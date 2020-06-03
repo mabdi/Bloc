@@ -1,11 +1,11 @@
 Class {
 	#name : #BlSpartaOpenGLCompositingSpaceRenderer,
-	#superclass : #BlSpartaSpaceRenderer,
+	#superclass : #BlSpartaHardwareAcceleratedSpaceRenderer,
 	#instVars : [
 		'compositor',
 		'rootLayer'
 	],
-	#category : #'Bloc-Compositor-Painter'
+	#category : #'Bloc-Sparta-Renderer'
 }
 
 { #category : #rendering }
@@ -30,7 +30,7 @@ BlSpartaOpenGLCompositingSpaceRenderer >> initializeForSurface: aSurface [
 
 { #category : #'as yet unclassified' }
 BlSpartaOpenGLCompositingSpaceRenderer >> logCr [
-	NonInteractiveTranscript stdout cr
+	"NonInteractiveTranscript stdout cr"
 ]
 
 { #category : #'as yet unclassified' }
@@ -41,9 +41,9 @@ BlSpartaOpenGLCompositingSpaceRenderer >> logTime: aName during: aBlock [
 	
 	aBlock value.
 	
-	NonInteractiveTranscript stdout
+	"NonInteractiveTranscript stdout
 		nextPutAll: aName; space;
-		nextPutAll: ((DateAndTime now - start) asMicroseconds / 1000.0) asString, 'ms'; cr.
+		nextPutAll: ((DateAndTime now - start) asMicroseconds / 1000.0) asString, 'ms'; cr."
 ]
 
 { #category : #rendering }
@@ -96,9 +96,7 @@ BlSpartaOpenGLCompositingSpaceRenderer >> renderSpace: aSpace [
 				
 			self
 				logTime: '[draw]'
-				during: [
-					spartaCanvas surfaceCanvas clear: Color transparent.
-					
+				during: [					
 					spartaCanvas transform
 						by: [ :t | t scaleBy: scaleFactor asPoint ]
 						during: [ compositor draw: skiaLayer on: spartaCanvas ]. ].
