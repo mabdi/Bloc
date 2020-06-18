@@ -77,7 +77,8 @@ Class {
 		'requestingLayout',
 		'previousMeasurementSpec',
 		'direction',
-		'waitingLayout'
+		'waitingLayout',
+		'ignoreLayoutRequests'
 	],
 	#category : #'Bloc-Layouts-Basic'
 }
@@ -156,12 +157,22 @@ BlLayout >> findClosestChildOf: anElement to: aPoint [
 	^ anElement children first
 ]
 
+{ #category : #protected }
+BlLayout >> ignoreRequestLayoutDuring: aBlock [
+	| wasIgnored |
+
+	wasIgnored := ignoreLayoutRequests.
+	ignoreLayoutRequests := true.
+	aBlock ensure: [ ignoreLayoutRequests := wasIgnored ]
+]
+
 { #category : #initialization }
 BlLayout >> initialize [
 	super initialize.
 	
 	requestingLayout := true.
 	waitingLayout := true.
+	ignoreLayoutRequests := false.
 	direction := self defaultDirection
 ]
 
@@ -383,6 +394,29 @@ BlLayout >> previousMeasurementSpec: anObject [
 ]
 
 { #category : #protected }
+BlLayout >> requestLayout: anElement from: aSourceElement [
+	"Request invalidation of layout on next space pulse originally
+	emitted by a given element.
+	Note: there should be no ===self isLayoutRequested ifTrue: [ ^ self ]===
+	check since there can be a case when I am requesting layout, but my parent
+	still does not"
+	
+	ignoreLayoutRequests
+		ifTrue: [ ^ self ].
+
+	self requestingLayout: true.
+	"checking for parent to be not nil is faster when inlined instead
+	of using hasParent. It is critical because this method is being
+	sent quite often and should be performant"
+	anElement parent
+		ifNotNil: [ :aParent | aParent requestLayout: aSourceElement ]
+		"There is no parent, probably I am a root element, let's check Space"
+		ifNil: [ anElement space
+			"If my parent is nil, but I am added to space, we need to let it know that we requested a layout by asking for a next pulse"
+			ifNotNil: [ :aSpace | aSpace requestNextPulse ] ]
+]
+
+{ #category : #protected }
 BlLayout >> requestingLayout [
 	"Return true if element requested layout on next space pulse, false otherwise"
 	<return: #Boolean>
@@ -392,7 +426,7 @@ BlLayout >> requestingLayout [
 
 { #category : #protected }
 BlLayout >> requestingLayout: aBoolean [
-		
+
 	aBoolean
 		ifTrue: [ waitingLayout := true ]
 		ifFalse: [ self waitingLayout

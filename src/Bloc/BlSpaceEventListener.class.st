@@ -75,6 +75,8 @@ BlSpaceEventListener >> mouseMoveEvent: anEvent [
 
 { #category : #accessing }
 BlSpaceEventListener >> mouseProcessor [
+	<return: #BlMouseProcessor>
+
 	^ self space mouseProcessor
 ]
 
@@ -105,6 +107,11 @@ BlSpaceEventListener >> space: anObject [
 { #category : #'window handlers' }
 BlSpaceEventListener >> spaceCloseRequest: anEvent [
 	self space close
+]
+
+{ #category : #'window handlers' }
+BlSpaceEventListener >> spaceClosedEvent: anEvent [
+	self mouseProcessor onSpaceClosed
 ]
 
 { #category : #'drag and drop' }
@@ -143,6 +150,16 @@ BlSpaceEventListener >> spaceFocusInEvent: anEvent [
 BlSpaceEventListener >> spaceFocusOutEvent: anEvent [
 	self focusProcessor processWindowFocusOut: anEvent.
 	self keyboardProcessor processWindowFocusOut: anEvent
+]
+
+{ #category : #'window handlers' }
+BlSpaceEventListener >> spaceMouseEnterEvent: anEvent [
+	self mouseProcessor handleMouseEntered: anEvent
+]
+
+{ #category : #'window handlers' }
+BlSpaceEventListener >> spaceMouseLeaveEvent: anEvent [
+	self mouseProcessor handleMouseLeft: anEvent
 ]
 
 { #category : #'window handlers' }

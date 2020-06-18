@@ -18,11 +18,18 @@ BlCompositionPictureLayer >> asForm [
 
 { #category : #converting }
 BlCompositionPictureLayer >> asSkiaLayer [
-	self
-		assert: [ self picture isNotNil ]
-		description: [ 'Can not create a layer for nil picture' ].
+	^ self picture
+		ifNil: [ SkiaCompositionPictureLayer new ]
+		ifNotNil: [ :aPicture | (SkiaCompositionPictureLayer picture: aPicture) needsCache: self isWorthCaching ]
+]
 
-	^ (SkiaCompositionPictureLayer picture: self picture) needsCache: self isWorthCaching
+{ #category : #converting }
+BlCompositionPictureLayer >> asSymbolTree [
+	^ {
+		#Picture .
+			#cache . self needsCache.
+			#simple . self isSimple
+	}
 ]
 
 { #category : #drawing }
@@ -37,7 +44,8 @@ BlCompositionPictureLayer >> drawOnSpartaCanvas: aCanvas [
 BlCompositionPictureLayer >> initialize [
 	super initialize.
 	
-	needsCache := false
+	needsCache := false.
+	isSimple := false
 ]
 
 { #category : #testing }

@@ -15,6 +15,17 @@ BlCompositionLayer >> gtPreviewFor: aView [
 ]
 
 { #category : #'*Bloc-Compositor-GToolkit' }
+BlCompositionLayer >> gtSymbolTreeFor: aView [
+	<gtView>
+	
+	^ aView textEditor
+		title: 'Tree Print';
+		priority: 4;
+		look: BrGlamorousCodeEditorLook new;
+		text: [ self class printSymbolTree: self asSymbolTree ]
+]
+
+{ #category : #'*Bloc-Compositor-GToolkit' }
 BlCompositionLayer >> gtTreeFor: aView [
 	<gtView>
 	

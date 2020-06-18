@@ -507,11 +507,18 @@ BlElement >> baselineOffset [
 	^ 0
 ]
 
-{ #category : #testing }
+{ #category : #'api - compositing' }
 BlElement >> beInSeparateCompositionLayer [
-	"Make me that I want to be rendered in a separate composition layer"
+	"Make me that I want to be rendered in a separate compositing layer"
 
-	misc wantsCompositionLayer: true
+	misc compositingMode: BlCompositingSeparateLayerMode uniqueInstance
+]
+
+{ #category : #'api - compositing' }
+BlElement >> beInSingleCompositionLayer [
+	"Make me and my children be rendered in a single compositing layer"
+
+	misc compositingMode: BlCompositingSingleLayerMode uniqueInstance
 ]
 
 { #category : #'api - look' }
@@ -741,6 +748,13 @@ BlElement >> commitChanges [
 	self telemetry
 		timeSync: [ 'Commit children ', self class name ]
 		during: [ self childrenDo: [ :anElement | anElement commitChanges ] ]
+]
+
+{ #category : #accessing }
+BlElement >> compositingMode [
+	<return: #BlCompositingMode>
+
+	^ misc compositingMode
 ]
 
 { #category : #'api - painting' }
@@ -1179,10 +1193,7 @@ BlElement >> effect: anEffect [
 	self
 		assert: [ anEffect isNotNil ]
 		description: [ 'anEffect must not be nil' ].
-	
-	self flag: 'What should happen when we already have an effect?'.
-	
-	anEffect on: self.
+
 	effect := anEffect.
 	self invalidate
 ]
@@ -1194,7 +1205,7 @@ BlElement >> effectBounds [
 
 { #category : #'geometry bounds' }
 BlElement >> effectBounds: aSpartaRectangle [
-	^ self effect effectBounds: aSpartaRectangle
+	^ self effect effectBounds: aSpartaRectangle of: self
 ]
 
 { #category : #'api - look' }
@@ -1667,7 +1678,7 @@ BlElement >> initialize [
 	elevation := self defaultElevation.
 	focusability := self defaultFocusability.
 	visibility := self defaultVisibility.
-	effect := BlNullEffect on: self.
+	effect := BlNullEffect new.
 
 	shouldHandleMouseEvents := true.
 	shouldChildrenHandleMouseEvents := true.
@@ -1730,7 +1741,7 @@ BlElement >> invalidate [
 BlElement >> invalidateAfterFrom: aPreviousPosition to: aNewPosition [
 	"Invalidate due to relocation by a given offset"
 
-	self wantsCompositionLayer
+	self wantsSeparateCompositingLayer
 		ifTrue: [ self hasCompositionLayer
 				ifTrue: [
 					| aLayer |
@@ -1748,7 +1759,7 @@ BlElement >> invalidateAfterFrom: aPreviousPosition to: aNewPosition [
 BlElement >> invalidateAfterRelocateFrom: aPreviousPosition to: aNewPosition [
 	"Invalidate due to relocation by a given offset"
 
-	self wantsCompositionLayer
+	self wantsSeparateCompositingLayer
 		ifTrue: [ self hasCompositionLayer
 				ifTrue: [
 					| aLayer |
@@ -2153,7 +2164,7 @@ BlElement >> markNeedsPaintFrom: anElement [
 	anElement is the element from which the re-painting request originates"
 	needsPaint := true.
 	
-	self wantsCompositionLayer
+	self wantsSeparateCompositingLayer
 		ifTrue: [
 			self isAttachedToSceneGraph
 				ifTrue: [ self space markNeedsPaint: self from: anElement ] ]
@@ -3132,16 +3143,7 @@ BlElement >> requestLayout: anElement [
 	check since there can be a case when I am requesting layout, but my parent
 	still does not"
 
-	self layout requestingLayout: true.
-	"checking for parent to be not nil is faster when inlined instead
-	of using hasParent. It is critical because this method is being
-	sent quite often and should be performant"
-	self parent
-		ifNotNil: [ :aParent | aParent requestLayout: anElement ]
-		"There is no parent, probably I am a root element, let's check Space"
-		ifNil: [ self space
-			"If my parent is nil, but I am added to space, we need to let it know that we requested a layout by asking for a next pulse"
-			ifNotNil: [ :aSpace | aSpace requestNextPulse ] ]
+	self layout requestLayout: self from: anElement
 ]
 
 { #category : #layout }
@@ -3582,14 +3584,6 @@ BlElement >> visualBoundsOn: aCanvas [
 	^ (self visualBounds: BlBounds new on: aCanvas) asRectangle
 ]
 
-{ #category : #testing }
-BlElement >> wantsCompositionLayer [
-	"Return true if I should be painted in my own composition layer (if supported)"
-	<return: #Boolean>
-
-	^ misc wantsCompositionLayer or: [ self effect wantsCompositionLayer ]
-]
-
 { #category : #'event handling' }
 BlElement >> wantsMouseEventAt: aPoint [
 	"Return true if I can be picked as target for mouse event at given location specified in space coordinates.
@@ -3597,6 +3591,20 @@ BlElement >> wantsMouseEventAt: aPoint [
 	<return: #Boolean>
 
 	^ self isVisible and: [ self containsGlobalPoint: aPoint ]
+]
+
+{ #category : #'api - compositing' }
+BlElement >> wantsSeparateCompositingLayer [
+	<return: #Boolean>
+
+	(self compositingMode wantsCompositionLayer or:  [ self effect wantsCompositionLayer ])
+		ifFalse: [ ^ false ].
+
+	self allParentsDo: [ :eachParent |
+			eachParent compositingMode wantsBufferedLayer
+				ifTrue: [ ^ false ] ].
+
+	^ true
 ]
 
 { #category : #'api - bounds' }

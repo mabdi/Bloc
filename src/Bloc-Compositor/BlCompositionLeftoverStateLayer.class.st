@@ -20,6 +20,15 @@ BlCompositionLeftoverStateLayer >> asSkiaLayer [
 	^ skiaLayer
 ]
 
+{ #category : #converting }
+BlCompositionLeftoverStateLayer >> asSymbolTree [
+	^ {
+		#Leftover.
+			#state. self state asSymbolTree.
+			self layers collect: [ :eachLayer | eachLayer asSymbolTree ] as: Array
+	}
+]
+
 { #category : #accessing }
 BlCompositionLeftoverStateLayer >> commands [
 	<return: #Array of: #BlCompositionPainterStateCommand>

@@ -8,6 +8,16 @@ Class {
 	#category : #'Bloc-Compositor-Layers'
 }
 
+{ #category : #converting }
+BlCompositionClipLayer >> asSymbolTree [
+	^ {
+		#Clip .
+			#offset. { self offset x . self offset y }.
+			#path. self path class name.
+			self layers collect: [ :eachLayer | eachLayer asSymbolTree ] as: Array
+	}
+]
+
 { #category : #accessing }
 BlCompositionClipLayer >> name [
 	^ 'Clip'

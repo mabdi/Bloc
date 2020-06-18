@@ -25,6 +25,23 @@ BlCompositionTransformationLayer >> asSkiaLayer [
 			anOffsetLayer ]
 ]
 
+{ #category : #converting }
+BlCompositionTransformationLayer >> asSymbolTree [
+	^ {
+		#Transformation .
+			#offset. { self offset x . self offset y }.
+			#matrix. self matrix asMatrixCollection asArray.
+			self layers collect: [ :eachLayer | eachLayer asSymbolTree ] as: Array
+	}
+]
+
+{ #category : #initialization }
+BlCompositionTransformationLayer >> initialize [
+	super initialize.
+	
+	matrix := BlMatrix2D new
+]
+
 { #category : #accessing }
 BlCompositionTransformationLayer >> matrix [
 	^ matrix
