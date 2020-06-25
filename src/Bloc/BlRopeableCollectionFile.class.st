@@ -100,7 +100,7 @@ BlRopeableCollectionFile >> at: anInteger [
 	"Answer the character at anInteger"
 
 	self ensureBuffered: anInteger.
-	^ buffer at: (anInteger - bufferStart + 1).
+	^ buffer at: (anInteger - bufferStart + 1) asInteger.
 ]
 
 { #category : #accessing }
@@ -139,7 +139,7 @@ BlRopeableCollectionFile >> copyFrom: startIndex to: endIndex [
 	self ensureBuffered: startIndex.
 	length := endIndex - startIndex + 1.
 	length <= 0 ifTrue: [ ^ '' ].
-	results := Array new: length.
+	results := String new: length.
 	receiverIndex := startIndex.
 	resultIndex := 1.
 	bufferIndex := startIndex - bufferStart + 1.
@@ -224,7 +224,7 @@ BlRopeableCollectionFile >> ensureBuffered: anInteger [
 		bufferedSize := buffer size.
 		map add: (bufferStart + bufferedSize - 1) -> binaryStream position.
 		haveSize := haveSize or: [ binaryStream atEnd ].
-		(haveSize and: [ anInteger > self size ]) ifTrue: [ ^self ] ].
+		(haveSize and: [ anInteger >= self size ]) ifTrue: [ ^self ] ].
 
 ]
 
@@ -346,11 +346,12 @@ BlRopeableCollectionFile >> size [
 	"Answer the receiver's size.
 	If the entire file has not been scanned use the file size, which will be either correct or an over-estimate"
 
+	"Ensure that the initial buffer has been loaded, which will improve accuracy in many cases"
+	bufferedSize = 0 ifTrue: [ self ensureBuffered: 1 ].
+
 	^ haveSize
 		ifTrue: [ map last key ]
-		ifFalse: [ fileReference
-			ifNil: [ 0 ]
-			ifNotNil: [ fileReference size ] ]
+		ifFalse: [ BlTextIndexEOS new text: self ]
 ]
 
 { #category : #private }
