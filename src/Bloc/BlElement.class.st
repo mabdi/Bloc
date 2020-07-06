@@ -153,17 +153,22 @@ BlElement >> addChild: anElement at: anIndex [
 
 	"update parent"
 	anElement parent: self.
+
 	"actually add child"
 	self children add: anElement at: anIndex.
+
 	"dispatch events/hooks after element has been added"
 	self dispatchChildAdded: anElement.
+
 	"mt managed children changed, request invalidation"
-	self childrenChanged.	
+	self childrenChanged.
+
 	"only requesting layout is not enough, because if size or position does not change
 	there will be no invalidated bounds and nothing will be rendered"
 	anElement invalidate.
+	
 	"We should request layout from newly added element to mark it as dirty too"
-	anElement requestLayout.
+	anElement requestLayout
 ]
 
 { #category : #'children add/remove' }
@@ -1208,6 +1213,10 @@ BlElement >> elevation: aBlElevation [
 
 { #category : #'api - tasks' }
 BlElement >> enqueueTask: aBlTask [
+	"Queue the supplied task to be executed in the next frame.
+	If you want the task executed in the UI process as soon as possible, use #inUIProcessDo:.
+	Note that the task is not guaranteed to be executed (if the element is never attached to a scene)."
+
 	aBlTask onEnqueuedInElement: self.
 	self isAttachedToSceneGraph
 		ifTrue: [ self space enqueueTask: aBlTask ]
@@ -1635,6 +1644,19 @@ BlElement >> height: aNumber [
 
 	self constraintsDo: [ :c |
 		c vertical exact: aNumber ]
+]
+
+{ #category : #processing }
+BlElement >> inUIProcessDo: aBlock [ 
+	"Run the supplied block in the UI process.
+	If the current process is the ui process, evaluate immediately, otherwise queue up for the next frame."
+	| uiProcess |
+
+	self isAttachedToSceneGraph and: [ self space host uiProcessDo: 
+			[ :uiProc | uiProcess := uiProc ] ].
+	uiProcess = Processor activeProcess
+		ifTrue: [ aBlock value ]
+		ifFalse: [ self enqueueTask: (BlTaskAction new action: aBlock) ]
 ]
 
 { #category : #initialization }
@@ -2148,7 +2170,13 @@ BlElement >> markNeedsPaintFrom: anElement [
 	self wantsSeparateCompositingLayer
 		ifTrue: [
 			self isAttachedToSceneGraph
-				ifTrue: [ self space markNeedsPaint: self from: anElement ] ]
+				ifTrue: [
+					self hasCompositionLayer
+						ifTrue: [ self space markNeedsPaint: self from: anElement ]
+						ifFalse: [
+							self hasParent
+								ifTrue: [ self parent markNeedsPaintFrom: anElement ]
+								ifFalse: [ self space markNeedsPaint: self from: anElement ]	] ] ]
 		ifFalse: [ 
 			self hasParent
 				ifTrue: [ self parent markNeedsPaintFrom: anElement ]
@@ -2887,20 +2915,21 @@ BlElement >> removeChild: anElement [
 	As result anElement sends BlElementRemovedEvent
 	anElement must not be nil.
 	anElement must be my direct child"
-	self assert: anElement isNotNil.
-	self assert: anElement parent == self.
-	
-	"First of all, we have to damage area occupied by removed element"
-	anElement invalidate.
-	"then we request layout update while element is not yet removed"
-	anElement requestLayout.
+	self assert: [ anElement notNil ].
+	self assert: [ anElement parent == self ].
 
 	anElement parent: nil.
 	self children remove: anElement.
 	self dispatchChildRemoved: anElement.
 	
 	"child removed"
-	self childrenChanged
+	self childrenChanged.
+	
+	"First of all, we have to damage area occupied by removed element"
+	self invalidate.
+
+	"then we request layout update while element is not yet removed"
+	self requestLayout.
 ]
 
 { #category : #'children add/remove' }
@@ -2923,15 +2952,17 @@ BlElement >> removeChildAt: anIndex [
 		description: [ 'anIndex must be within children array bounds' ].
 	
 	anElement := self children at: anIndex.
-	"First of all, we have to damage area occupied by removed element"
-	anElement invalidate.
-	"then we request layout update while element is not yet removed"
-	anElement requestLayout.
 
 	anElement parent: nil.
+
 	self children removeAt: anIndex.
 	self dispatchChildRemoved: anElement.
 	self childrenChanged.
+	
+	"First of all, we have to damage area occupied by removed element"
+	self invalidate.
+	"then we request layout update while element is not yet removed"
+	self requestLayout
 ]
 
 { #category : #'children add/remove' }
@@ -2954,20 +2985,20 @@ BlElement >> removeChildren [
 	"first update element's parent to nil"
 	oldChildren := self children.
 
-	oldChildren do: [ :anElement |
-		"First of all, we have to damage area occupied by removed element"
-		anElement invalidate.
-		"then we request layout update while element is not yet removed"
-		anElement requestLayout.
-
-		anElement parent: nil ].
+	oldChildren do: [ :anElement | anElement parent: nil ].
 
 	"actually remove children"
 	self resetChildrenArray.
 	"send hook after elements has been removes"
 	oldChildren do: [ :anElement | self dispatchChildRemoved: anElement ].
 	"finally requesting children changed"
-	self childrenChanged
+	self childrenChanged.
+	
+	"First of all, we have to damage area occupied by removed element"
+	self invalidate.
+	
+	"then we request layout update while element is not yet removed"
+	self requestLayout
 ]
 
 { #category : #'children add/remove' }
@@ -2983,15 +3014,17 @@ BlElement >> removeChildren: aListOfElements [
 		description: [ 'I can only remove my direct children!' ].
 	
 	aListOfElements do: [ :anElement |
-		"First of all, we have to damage area occupied by removed element"
-		anElement invalidate.
-		"then we request layout update while element is not yet removed"
-		anElement requestLayout.
 		anElement parent: nil ].
 	self children removeAll: aListOfElements.
 	aListOfElements do: [ :anElement | self dispatchChildRemoved: anElement ].
 
-	self childrenChanged
+	self childrenChanged.
+	
+	"First of all, we have to damage area occupied by removed element"
+	self invalidate.
+	
+	"then we request layout update while element is not yet removed"
+	self requestLayout
 ]
 
 { #category : #'children add/remove' }
