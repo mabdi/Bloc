@@ -2,7 +2,7 @@
 ! Welcome to Bloc
 I am the root class of all visual elements in Bloc and can be composed out of other elements that we will refer to as ==children==. 
 !! Visual properties
-Being a root class and a core element I let users to configure a few esential visual properties such as background, border, opacity, size and a few more. In this part we will go through each of them.
+Being a root class and a core element, I let users configure a few essential visual properties such as background, border, opacity, size and a few more. Let's go through each of them.
 !!! Background
 ${class:BlBackground}$describes how an element should be filled, e.g. its background.
 ${class:BlBackgroundExamples}$ gives a detailed insight in the world of bloc backgrounds.
@@ -13,9 +13,9 @@ ${class:BlBorderExamples}$ provides more detailed information about a border.
 Opacity defines how transparent an element is. It does not influence event propagation.
 ${class:BlOpacityExamples}$ shows in details how opacity affects the element.
 !! Composition
-To be in-line with Bloc design we prefer composition over iheritance. Thus it is better to have tiny bloc elements with small and simple api and clear responsibilities that can later be composed into a more sophisticated graphical scene. In this paragraph we will learn the basic composition aspects and corresponding API.
+To be in-line with Bloc design, we prefer composition over inheritance. Thus it is better to have tiny bloc elements - each with a small and simple API and clear responsibilities - that can later be composed into a more sophisticated graphical scene. In this paragraph we will learn the basic composition aspects and corresponding API.
 
-The composition relation between parent and children is 1:N meaning that an element can have at most one parent. Therefore by design it is only possible to add an element to just one element. Trying to add an element that is already a child to some other element results in ${class:BlAlreadyAddedAsChildError}$ 
+The composition relation between parent and children is 1:N meaning that an element can have at most one parent. Therefore by design it is only possible to add an element to just one other element. Trying to add an element that is already a child to some other element results in ${class:BlAlreadyAddedAsChildError}$ 
 
 Bloc elements provide a set of methods to add and remove children.
 !!! Adding children
@@ -31,12 +31,16 @@ parent addChild: child
 
 Users may also choose to add an element as the first child, for that purpose Bloc provides ${method:BlElement>>#addChildFirst:}$.
 !!Geometry and bounds
-Every element is responsible for drawing itself. At the same time, every element has a ${class:BlGeometry}$ that defines the bounds and the clipping.
+Every element is responsible for drawing itself. At the same time, every element has a ${class:BlElementGeometry}$ that defines the bounds and the clipping. There are many types of geometry available:
+[[[
+BlElementGeometry allSubclasses
+]]]
 
 See ${class:BlGeometryVisualAndLayoutBoundsExamples}$ for concrete details.
+!!Layout
+There are many built-in ${class:BlLayout}$ strategies available, or you can create your own.
 !!Tutorial
 You can learn Bloc following a memory game tutorial: ${icebergFile:path=feenkcom/Bloc/doc/tutorial-memory-game/00-memory-game.pillar}$.
-
 "
 Class {
 	#name : #BlElement,
@@ -44,7 +48,7 @@ Class {
 	#traits : 'TBlTransformable + TBlEventTarget + TBlDebug',
 	#classTraits : 'TBlTransformable classTrait + TBlEventTarget classTrait + TBlDebug classTrait',
 	#instVars : [
-		'space',
+		'spaceReference',
 		'parent',
 		'children',
 		'bounds',
@@ -126,20 +130,25 @@ BlElement >> addChild: anElement at: anIndex [
 	anElement parent: self.
 
 	"actually add child"
-	self children add: anElement at: anIndex.
+	self telemetry
+		timeSync: [ 'Add child {1} to {2} at {3}' format: { anElement . self . anIndex } ]
+		during: [ self children add: anElement at: anIndex ].
 
 	"dispatch events/hooks after element has been added"
-	self dispatchChildAdded: anElement.
-
-	"mt managed children changed, request invalidation"
-	self childrenChanged.
-
+	self telemetry
+		timeSync: [ 'Dispatch child added' ]
+		during: [ self dispatchChildAdded: anElement ].
+	
 	"only requesting layout is not enough, because if size or position does not change
 	there will be no invalidated bounds and nothing will be rendered"
-	anElement invalidate.
+	self telemetry
+		timeSync: [ 'Invalidate child after adding it' ]
+		during: [ anElement invalidate ].
 	
 	"We should request layout from newly added element to mark it as dirty too"
-	anElement requestLayout
+	self telemetry
+		timeSync: [ 'Request child layout after adding it' ]
+		during: [ anElement requestLayout ].
 ]
 
 { #category : #'children add/remove' }
@@ -224,8 +233,6 @@ BlElement >> addChildren: aListOfElements [
 	self children addAll: aListOfElements.
 	"send hook after elements have been added"
 	aListOfElements do: [ :anElement | self dispatchChildAdded: anElement ].
-	"finally requesting children changed"
-	self childrenChanged.
 	"We should request layout from newly added elements to mark them as dirty too"
 	aListOfElements do: [ :anElement | anElement requestLayout ]
 ]
@@ -426,7 +433,25 @@ BlElement >> attachChild: anElement at: anIndex [
 	self assert: anIndex <= (self children size + 1).
 
 	anElement parent: self.
-	self children add: anElement at: anIndex
+	self children add: anElement at: anIndex.
+	
+	"if it is not attached to the scene graph we do not need to attach children"
+	self isAttachedToSceneGraph
+		ifFalse: [ ^ self ].
+
+	anElement withAllChildrenBreadthFirstDo: [ :eachElement |
+		eachElement isDetachedFromSceneGraph
+			ifTrue: [ eachElement attachSpace ]
+			ifFalse: [
+				eachElement isRemovedFromSceneGraph
+					ifTrue: [
+						eachElement attachSpace.
+						eachElement onAddedToSceneGraph ] ] ]
+]
+
+{ #category : #'api - space' }
+BlElement >> attachSpace [
+	spaceReference := BlAttachedSpaceReference uniqueInstance
 ]
 
 { #category : #'api - look' }
@@ -669,10 +694,6 @@ BlElement >> children [
 	<return: #BlChildrenCollection>
 
 	^ children
-]
-
-{ #category : #'children dispatching' }
-BlElement >> childrenChanged [
 ]
 
 { #category : #'children accessing' }
@@ -968,7 +989,11 @@ BlElement >> detachChild: anElement [
 	self assert: anElement parent == self.
 
 	anElement parent: nil.
-	self children remove: anElement
+	self children remove: anElement.
+
+	anElement withAllChildrenBreadthFirstDo: [ :eachElement |
+		eachElement isAttachedToSceneGraph
+			ifTrue: [ eachElement detachSpace ] ].
 ]
 
 { #category : #'api - painting' }
@@ -998,6 +1023,15 @@ BlElement >> detachFromParentWhile: aBlock [
 			[ aBlock value ] ensure: [ aParentElement attachChild: self at: aChildIndex ] ]
 ]
 
+{ #category : #'api - space' }
+BlElement >> detachSpace [
+	self
+		assert: [ self isAttachedToSceneGraph ]
+		description: [ 'Can not detach space when not attached' ].
+
+	spaceReference := BlDetachedSpaceReference uniqueInstance
+]
+
 { #category : #'children dispatching' }
 BlElement >> dispatchAddedToParent [
 	"Sent after I was added to another element as direct child.
@@ -1005,7 +1039,9 @@ BlElement >> dispatchAddedToParent [
 
 	self onAddedToParent.
 	self eventDispatcher dispatchAddedToParent.
-	self dispatchAddedToSuperParent: self
+	self telemetry
+		timeSync: [ 'Dispatch added to super-parent {1}' format: { self } ]
+		during: [ self dispatchAddedToSuperParent: self ]
 ]
 
 { #category : #'children dispatching' }
@@ -1013,9 +1049,17 @@ BlElement >> dispatchAddedToSceneGraph [
 	"Sent after any of my parents or I was added to scene graph.
 	I dispatch or fire all necessary events, clean internal caches and send a corresponding hooks"
 
+	self
+		assert: [ self isAttachedToSceneGraph ]
+		description: [ 'I must already be attached to the scene graph' ].
+
 	self onAddedToSceneGraph.
-	self eventDispatcher dispatchAddedToSceneGraph.
-	self childrenDo: [ :anElement | anElement dispatchAddedToSceneGraph ]
+	self childrenDo: [ :anElement |
+
+		anElement isAttachedToSceneGraph
+			ifFalse: [ anElement attachSpace ].
+		
+		anElement dispatchAddedToSceneGraph ]
 ]
 
 { #category : #'children dispatching' }
@@ -1024,23 +1068,38 @@ BlElement >> dispatchAddedToSuperParent: anElement [
 	I dispatch or fire all necessary events, clean internal caches and send a corresponding hooks"
 
 	self onAddedToSuperParent: anElement.
-	self eventDispatcher dispatchAddedToSuperParent: anElement.
 
-	self childrenDo: [ :aChildElement | aChildElement dispatchAddedToSuperParent: anElement ]
+	self telemetry
+		timeSync: [ 'Notify added to super-parent {1}' format: { anElement } ]
+		during: [ self eventDispatcher dispatchAddedToSuperParent: anElement ].
+
+	self telemetry
+		timeSync: [ 'Dispatch to children added to super-parent {1}' format: { anElement } ]
+		during: [ self childrenDo: [ :aChildElement | aChildElement dispatchAddedToSuperParent: anElement ] ]
 ]
 
 { #category : #'children dispatching' }
 BlElement >> dispatchChildAdded: anElement [
 	
 	"First send hook to myself"
-	self onChildAdded: anElement.
-	"Let child dispatch necessary events and hooks"
-	anElement dispatchAddedToParent.
+	self telemetry
+		timeSync: [ 'On child added {1}' format: { anElement } ]
+		during: [ self onChildAdded: anElement ].
 
-	"If an only if I am attached to scene graph we let child know
+	"If and only if I am attached to scene graph we let child know
 	that it is a part of the scene graph now"
 	self isAttachedToSceneGraph
-		ifTrue: [ anElement dispatchAddedToSceneGraph ].
+		ifTrue: [
+			self telemetry
+				timeSync: [ 'Dispatch added to scene graph {1}' format: { anElement } ]
+				during: [
+					anElement attachSpace.
+					anElement dispatchAddedToSceneGraph ] ].
+
+	"Let child dispatch necessary events and hooks"
+	self telemetry
+		timeSync: [ 'Dispatch added to parent {1}' format: { anElement } ]
+		during: [ anElement dispatchAddedToParent ].
 ]
 
 { #category : #'children dispatching' }
@@ -1051,10 +1110,14 @@ BlElement >> dispatchChildRemoved: anElement [
 	"Let child dispatch necessary events and hooks"
 	anElement dispatchRemovedFromParent: self.
 	
-	"If an only if I am attached to scene graph we let child know
-	that it is not a part of the scene graph anymore"
-	self isAttachedToSceneGraph
-		ifTrue: [ anElement dispatchRemovedFromSceneGraph ].
+	"If an only if I am attached to scene graph or I am detached from the scene graph
+	we let child know that it is not a part of the scene graph anymore.
+	
+	We need to also handle the detached case here, as when detaching the 
+	parent element this event is not triggered (this event will not be triggred at 
+	all in case the parent is reattached)."
+	(self isAttachedToSceneGraph or: [ self isDetachedFromSceneGraph ])
+		ifTrue: [ anElement dispatchRemovedFromSceneGraph ]
 ]
 
 { #category : #layout }
@@ -1613,7 +1676,8 @@ BlElement >> inUIProcessDo: aBlock [
 { #category : #initialization }
 BlElement >> initialize [
 	super initialize.
-
+	
+	spaceReference := BlNullSpaceReference uniqueInstance.
 	visuals := BlDefaultVisuals uniqueInstance.
 
 	boundsCache := BlBoundsCache on: self.
@@ -1748,16 +1812,21 @@ BlElement >> invalidationBounds: aBounds [
 	^ anInvalidationBounds
 ]
 
-{ #category : #'children testing' }
+{ #category : #'api - space' }
 BlElement >> isAttachedToSceneGraph [
 	"Return true if I am inside of a scene graph, e.g. I have a space's root element
 	as my top-most parent, false otherwise"
 	<return: #Boolean>
 
-	"To support temporary detachment/attachment which sets parent to nil but
-	preserves reference to space we can not recursively go up in parent's hierarchy
-	and have to check space reference existence instead"
-	^ self space isNotNil
+	^ spaceReference isAttachedToSceneGraph
+]
+
+{ #category : #'api - space' }
+BlElement >> isDetachedFromSceneGraph [
+	"Return true if I am detached from the scene graph"
+	<return: #Boolean>
+
+	^ spaceReference isDetachedFromSceneGraph
 ]
 
 { #category : #'focus testing' }
@@ -1804,6 +1873,14 @@ BlElement >> isOpaque [
 	<return: #Boolean>
 
 	^ self opacity = 1.0
+]
+
+{ #category : #'api - space' }
+BlElement >> isRemovedFromSceneGraph [
+	"Return true if I am not in the scene graph"
+	<return: #Boolean>
+
+	^ spaceReference isNull
 ]
 
 { #category : #testing }
@@ -2414,11 +2491,16 @@ BlElement >> onAddedToSceneGraph [
 	"Sent after one of my parents or I was added to scene graph, e.g. root element.
 	At this point #isAttachedToSceneGraph results in true.
 	Note: Always send onAddedToSceneGraph to super class if you override me!"
-	
+
+	self
+		assert: [ self isAttachedToSceneGraph ]
+		description: [ 'I must already be attached to the scene graph' ].
+
 	self isFocused
 		ifTrue: [ self requestFocus ].
-		
-	self space enqueueTasksFrom: self taskQueue
+
+	self space enqueueTasksFrom: self taskQueue.
+	self eventDispatcher dispatchAddedToSceneGraph
 ]
 
 { #category : #'hooks - children' }
@@ -2523,7 +2605,7 @@ BlElement >> onRemovedFromSceneGraph [
 	At this point #isAttachedToSceneGraph results in false.
 	Note: Always send onRemovedFromSceneGraph to super class if you override me!"
 
-	space := nil.
+	spaceReference := BlNullSpaceReference uniqueInstance.
 	self detachCompositionLayer.
 	self layout onCleanUp: self
 ]
@@ -2839,9 +2921,6 @@ BlElement >> removeChild: anElement [
 	self children remove: anElement.
 	self dispatchChildRemoved: anElement.
 	
-	"child removed"
-	self childrenChanged.
-	
 	"First of all, we have to damage area occupied by removed element"
 	self invalidate.
 
@@ -2874,7 +2953,6 @@ BlElement >> removeChildAt: anIndex [
 
 	self children removeAt: anIndex.
 	self dispatchChildRemoved: anElement.
-	self childrenChanged.
 	
 	"First of all, we have to damage area occupied by removed element"
 	self invalidate.
@@ -2908,8 +2986,6 @@ BlElement >> removeChildren [
 	self resetChildrenArray.
 	"send hook after elements has been removes"
 	oldChildren do: [ :anElement | self dispatchChildRemoved: anElement ].
-	"finally requesting children changed"
-	self childrenChanged.
 	
 	"First of all, we have to damage area occupied by removed element"
 	self invalidate.
@@ -2934,8 +3010,6 @@ BlElement >> removeChildren: aListOfElements [
 		anElement parent: nil ].
 	self children removeAll: aListOfElements.
 	aListOfElements do: [ :anElement | self dispatchChildRemoved: anElement ].
-
-	self childrenChanged.
 	
 	"First of all, we have to damage area occupied by removed element"
 	self invalidate.
@@ -3272,24 +3346,30 @@ BlElement >> size: aPoint [
 BlElement >> space [
 	"Return space to which I belong. Direct reference boosts performance.
 	Each element has a reference to the current space which is set at demand."
-	<return: #BlSpace>
+	<return: #BlSpace or: nil>
 	
-	space
-		ifNotNil: [ ^ space ].
+	spaceReference spaceDo: [ :aSpace | ^ aSpace ].
 	
-	self parent ifNotNil: [ :eachParent | space := eachParent space ].
+	spaceReference isAttachedToSceneGraph
+		ifFalse: [ ^ nil ].
 	
-	^ space
+	self parent ifNotNil: [ :eachParent |
+		eachParent space ifNotNil: [ :aSpace |
+			spaceReference := aSpace asReference ] ].
+	
+	spaceReference spaceDo: [ :aSpace | ^ aSpace ].
+	^ nil
 ]
 
 { #category : #accessing }
 BlElement >> space: aSpace [
-	"Set space to be accessed directly from my multiple methods.
+	"**I am internal Bloc api, do not use me diectly!**
+	Set space to be accessed directly from my multiple methods.
 	Update the space reference for my children.
 	aSpace must not be nil."
 	<argument: #aSpace satisfies: #notNil>
 
-	space := aSpace.
+	spaceReference := aSpace asReference.
 	self childrenDo: [ :each | each space: aSpace ]
 ]
 
@@ -3586,6 +3666,12 @@ BlElement >> withAllChildrenBreadthFirst [
 	^ Array streamContents: [ :aStream |
 		aStream nextPut: self.
 		self allChildrenBreadthFirstDo: [ :eachElement | aStream nextPut: eachElement ] ]
+]
+
+{ #category : #'api - children enumeration' }
+BlElement >> withAllChildrenBreadthFirstDo: aBlock [ 
+	aBlock value: self.
+	self allChildrenBreadthFirstDo: aBlock
 ]
 
 { #category : #'api - children enumeration' }
