@@ -192,7 +192,7 @@ BlMouseProcessor >> fireAsMouseOverEvent: aMouseEvent [
 
 { #category : #'event processing' }
 BlMouseProcessor >> generateEvents [
-	(lastEnteredTargets reject: [ :eachElement | eachElement isAttachedToSceneGraph ])
+	((lastEnteredTargets, { lastOverTarget }) reject: [ :eachElement | eachElement isNil or: [ eachElement space == self space ] ]) asSet
 		ifNotEmpty: [ :removedEnteredTargets |
 			| aMouseEvent |
 			
@@ -202,9 +202,17 @@ BlMouseProcessor >> generateEvents [
 				screenPosition: 0@0.
 			
 			self fireAsMouseLeaveEvent: aMouseEvent targets: removedEnteredTargets.
-			self fireAsMouseOutEvent: aMouseEvent targets: removedEnteredTargets.
-			
-			lastEnteredTargets := lastEnteredTargets select: [ :eachElement | eachElement isAttachedToSceneGraph ] ]
+			self fireAsMouseOutEvent: aMouseEvent targets: removedEnteredTargets ].
+	
+	lastEnteredTargets := lastEnteredTargets select: [ :eachElement | eachElement isAttachedToSceneGraph ].
+	(lastOverTarget notNil and: [ lastOverTarget space ~~ self space ])
+		ifTrue: [ lastOverTarget := nil ].
+	
+	(self isMouseEventValid: previousMouseDownEvent)
+		ifFalse: [ previousMouseDownEvent := nil ].
+
+	(self isMouseEventValid: lastClickEvent)
+		ifFalse: [ lastClickEvent := nil ]
 ]
 
 { #category : #'mouse down' }
@@ -259,6 +267,7 @@ BlMouseProcessor >> handleMouseMove: aMouseMoveEvent [
 	"picking and mouse move"
 	
 	aTargetElement := self processPicking: aMouseMoveEvent.
+
 	self
 		assert: [ aTargetElement isAttachedToSceneGraph ]
 		description: [ 'Target element must be attached to the scene graph' ].
@@ -325,6 +334,23 @@ BlMouseProcessor >> isDragging [
 	^ dndInProgress
 ]
 
+{ #category : #private }
+BlMouseProcessor >> isMouseEventValid: anEvent [
+	anEvent
+		ifNil: [ ^ false ].
+	
+	(({ anEvent target . anEvent currentTarget . anEvent source } reject: [ :eachElement | eachElement isNil ])
+		anySatisfy: [ :eachTargetElement |
+			| eachTargetSpace |
+			eachTargetSpace := (eachTargetElement isKindOf: BlSpace)
+				ifTrue: [ eachTargetElement ]
+				ifFalse: [ eachTargetElement space ].
+			eachTargetSpace ~~ self space ])
+				ifTrue: [ ^ false ].
+	
+	^ true
+]
+
 { #category : #'event testing' }
 BlMouseProcessor >> isValidDragTarget: aEvent [
 	^ (aEvent target = self space root) not
@@ -335,6 +361,13 @@ BlMouseProcessor >> lastClickEvent [
 	<return: #BlClickEvent or: nil>
 
 	^ lastClickEvent
+]
+
+{ #category : #accessing }
+BlMouseProcessor >> lastOverTarget [
+	<return: #BlElement>
+
+	^ lastOverTarget
 ]
 
 { #category : #'initialize-release' }
@@ -375,6 +408,13 @@ BlMouseProcessor >> pressedButtons [
 	<return: #Collection of: #BlMouseButton>
 
 	^ pressedButtons
+]
+
+{ #category : #accessing }
+BlMouseProcessor >> previousMouseDownEvent [
+	<return: #BlElement or: nil>
+
+	^ previousMouseDownEvent
 ]
 
 { #category : #'mouse drag' }
@@ -491,7 +531,7 @@ BlMouseProcessor >> processPicking: aMouseEvent [
 		ifTrue: [ lastOverTarget := nil ].
 
 	"if the last over target contains the point we can start picking from it"
-	(aMouseEvent isMouseMove and: [ lastOverTarget isNotNil and: [ lastOverTarget containsGlobalPoint: aMouseEvent position ] ])
+	(false"aMouseEvent isMouseMove and: [ lastOverTarget isNotNil and: [ lastOverTarget containsGlobalPoint: aMouseEvent position ] ]")
 		ifTrue: [ aTargetElement := lastOverTarget findMouseEventTargetAt: aMouseEvent position ]
 		ifFalse: [ aTargetElement := self space root findMouseEventTargetAt: aMouseEvent position ].
 	"we have to ensure that aTarget is not nil"

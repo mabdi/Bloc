@@ -46,28 +46,8 @@ Class {
 		'selection',
 		'highlights'
 	],
-	#classInstVars : [
-		'matrix'
-	],
 	#category : #'Bloc-Text-Text-Paragraph'
 }
-
-{ #category : #cleanup }
-BlTextParagraph class >> cleanUp [
-	super cleanUp.
-	
-	matrix := nil
-]
-
-{ #category : #accessing }
-BlTextParagraph class >> matrix [
-	"Return a temporary matrix used to collect data in.
-	It is a shared singleton to minimize object creation.
-	Must only be used on UI thread!"
-	<return: #BlTransformation>
-	
-	^ matrix ifNil: [ matrix := BlTransformation new ]
-]
 
 { #category : #'paragraph - geometry' }
 BlTextParagraph >> ascent [
@@ -95,6 +75,10 @@ BlTextParagraph >> baseline: aTextParagraphBaseline [
 BlTextParagraph >> baselineChanged [
 	"Is sent when baseline needs to be recomputed"
 	self subclassResponsibility
+]
+
+{ #category : #'paragraph - measuring' }
+BlTextParagraph >> basicMeasureOn: aBlHostTextMeasurer [
 ]
 
 { #category : #'paragraph - geometry' }
@@ -152,7 +136,7 @@ BlTextParagraph >> drawOn: aCanvas [
 	Note: I double dispatch through aCanvas to support multiple completely different canvasses"
 
 	session == Smalltalk session
-		ifFalse: [ self measureOn: aCanvas ].
+		ifFalse: [ ^ self ].
 
 	aCanvas drawTextParagraph: self
 ]
@@ -229,13 +213,6 @@ BlTextParagraph >> highlights [
 { #category : #'paragraph - geometry' }
 BlTextParagraph >> indexAtPosition: aPoint [
 	<return: #Number>
-	
-	self deprecated: 'Use indexAtPosition:on:'
-]
-
-{ #category : #'paragraph - geometry' }
-BlTextParagraph >> indexAtPosition: aPoint on: aCanvas [
-	<return: #Number>
 	| aParagraphSpan aPointInSpan |
 
 	aParagraphSpan := self
@@ -245,7 +222,7 @@ BlTextParagraph >> indexAtPosition: aPoint on: aCanvas [
 	
 	aPointInSpan := aPoint - aParagraphSpan baseline.
 	
-	^ aParagraphSpan indexAtPosition: aPointInSpan on: aCanvas
+	^ aParagraphSpan indexAtPosition: aPointInSpan
 ]
 
 { #category : #initialization }
@@ -312,11 +289,11 @@ BlTextParagraph >> maxWidth: aNumber [
 ]
 
 { #category : #'paragraph - measuring' }
-BlTextParagraph >> measureOn: aCanvas [
-	"Measure myself with a given canvas as a backend-specific context.
-	Note: I double dispatch through aCanvas to support multiple completely different canvasses"
+BlTextParagraph >> measureOn: aBlHostTextMeasurer [
+	"Measure myself with a given text measurer as a backend-specific context.
+	Note: I double dispatch through aBlHostTextMeasurer to support multiple completely different canvases"
 
-	aCanvas measureTextParagraph: self.
+	self basicMeasureOn: aBlHostTextMeasurer.
 
 	"we should store a session of the last successfull measurement"
 	session := Smalltalk session.
@@ -327,11 +304,6 @@ BlTextParagraph >> measureOn: aCanvas [
 	self
 		assert: [ self isNotEmpty ]
 		description: [ 'I must not be empty after measurement!' ]
-]
-
-{ #category : #'paragraph - measuring' }
-BlTextParagraph >> measureOn: aCanvas with: aSpanMeasurer [
-	^ self subclassResponsibility
 ]
 
 { #category : #'paragraph - geometry' }
@@ -350,16 +322,11 @@ BlTextParagraph >> normalize: aScale [
 
 { #category : #'paragraph - geometry' }
 BlTextParagraph >> positionAt: anIndex [
-	self deprecated: 'Use positionAt:on:'
-]
-
-{ #category : #'paragraph - geometry' }
-BlTextParagraph >> positionAt: anIndex on: aCanvas [
 	<return: #Point>
 	| aParagraphSpan |
 
 	aParagraphSpan := self spanAtIndex: anIndex.
-	^ aParagraphSpan positionAt: anIndex on: aCanvas
+	^ aParagraphSpan positionAt: anIndex
 ]
 
 { #category : #'paragraph - rendering' }
@@ -416,6 +383,11 @@ BlTextParagraph >> selection [
 { #category : #'api - instantiation' }
 BlTextParagraph >> selection: aBlTextSelection [
 	selection := aBlTextSelection
+]
+
+{ #category : #accessing }
+BlTextParagraph >> session [
+	^ session
 ]
 
 { #category : #testing }

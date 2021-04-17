@@ -45,7 +45,7 @@ BlEventListener >> dragStartEvent: anEvent [
 BlEventListener >> dropEvent: anEvent [
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #'api - accessing' }
 BlEventListener >> eventsToHandle [
 	^ BlUIEvent allSubclasses
 ]
@@ -198,6 +198,10 @@ BlEventListener >> spaceFocusOutEvent: anEvent [
 ]
 
 { #category : #'space handlers' }
+BlEventListener >> spaceIconChangedEvent: anEvent [
+]
+
+{ #category : #'space handlers' }
 BlEventListener >> spaceMouseEnterEvent: anEvent [
 ]
 
@@ -244,7 +248,7 @@ BlEventListener >> wantsEvent: anEvent [
 	anEvent isElementEvent
 		ifTrue: [ ^ false ].
 
-	^ true
+	^ (anEvent isKindOf: BlUIEvent) or: [ anEvent isKindOf: BlSpaceEvent ]
 ]
 
 { #category : #'other handlers' }

@@ -77,6 +77,11 @@ BlText >> append: aText [
 	self insertText: aText at: self size
 ]
 
+{ #category : #'text - modifications' }
+BlText >> appendString: aString [
+	self insertString: aString at: self size
+]
+
 { #category : #'text - converting' }
 BlText >> asArray [
     ^ Array streamContents: [ :aStream |
@@ -86,17 +91,11 @@ BlText >> asArray [
 { #category : #'text - converting' }
 BlText >> asString [
 	"I return an original String representaion of this text.
-	There is no guarantee that the size of the resulting string is the same
-	as of this text"
+	It is guaranteed that the size of the resulting string is the same as of this text"
 	<return: #String>
-	| nel |
 
-	nel := Character nel.
 	^ String streamContents: [ :aStream |
-		self do: [ :aCharacter |
-			aCharacter == nel
-				ifTrue: [ aStream nextPutAll: String crlf ]
-				ifFalse: [ aStream nextPut: aCharacter ] ] ]
+		self do: [ :aCharacter | aStream nextPut: aCharacter ] ]
 ]
 
 { #category : #'text - accessing' }
@@ -112,6 +111,13 @@ BlText >> attribute: aTextAttribute [
 	"Apply a given attribute on the whole text"
 
 	self attributes: { aTextAttribute }
+]
+
+{ #category : #'text - attributes' }
+BlText >> attribute: aTextAttribute from: aStart to: anEnd [
+	"Apply a given attribute on the text from aStart to anEnd"
+
+	self attributes: { aTextAttribute } from: aStart to: anEnd
 ]
 
 { #category : #'text - attributes' }
@@ -175,6 +181,11 @@ BlText >> clearAttributes: aBlock [
 { #category : #'text - attributes' }
 BlText >> clearAttributes: aStart to: anEnd if: aBlock [
 	self subclassResponsibility
+]
+
+{ #category : #'text - attributes' }
+BlText >> clearAttributesOfClass: aBlTextAttributeClass [
+	self clearAttributes: [ :eachAttribute | eachAttribute isKindOf: aBlTextAttributeClass ]
 ]
 
 { #category : #'text - enumeration' }
@@ -278,6 +289,21 @@ BlText >> findAttribute: aBlTextAttribute indicesDo: aBlock [
 		indicesDo: [ :aStart :anEnd | aBlock value: aStart value: anEnd ]
 ]
 
+{ #category : #'text - attributes' }
+BlText >> findAttributeSuchThat: aComparisonBlock indicesDo: aBlock [	
+	^ self iterator
+		nextAttributeStartAndEndSuchThat: aComparisonBlock
+		indicesDo: [ :aStart :anEnd | aBlock value: aStart value: anEnd ]
+]
+
+{ #category : #'text - attributes' }
+BlText >> findAttributes: aCollectionOfBlTextAttribute indicesDo: aBlock [
+	aCollectionOfBlTextAttribute do: [ :eachAttribute |
+		self iterator
+			nextAttributeStartAndEnd: eachAttribute
+			indicesDo: [ :aStart :anEnd | aBlock value: aStart value: anEnd ] ]
+]
+
 { #category : #'text - enumeration' }
 BlText >> finder [
 	^ BlPositionFinder new text: self
@@ -327,6 +353,16 @@ BlText >> generation [
 	<return: #Object>
 
 	^ self subclassResponsibility
+]
+
+{ #category : #'text - attributes' }
+BlText >> hasAttributeSuchThat: aComparisonBlock [
+	<return: #Boolean>
+	self
+		findAttributeSuchThat: aComparisonBlock
+		indicesDo: [ :aStart :anEnd | ^ true ].
+		
+	^ false
 ]
 
 { #category : #'text - testing' }
@@ -533,6 +569,25 @@ BlText >> readonly [
 	<return: #BlReadonlyText>
 
 	^ BlReadonlyText text: self
+]
+
+{ #category : #'text - attributes' }
+BlText >> removeAttribute: aBlTextAttribute [
+	self removeAttributes: { aBlTextAttribute }
+]
+
+{ #category : #'text - attributes' }
+BlText >> removeAttributes: aCollectionOfAttributes [
+	| theAttributesToRemove |
+	
+	theAttributesToRemove := aCollectionOfAttributes asIdentitySet.
+	self clearAttributes: [ :eachAttribute | theAttributesToRemove includes: eachAttribute ]
+]
+
+{ #category : #'text - modifications' }
+BlText >> replace: aStart to: anEnd withString: aString [
+	self delete: aStart to: anEnd.
+	self insertString: aString at: aStart
 ]
 
 { #category : #'text - accessing' }

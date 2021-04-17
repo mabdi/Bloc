@@ -16,8 +16,9 @@ Class {
 		'paragraph',
 		'selection',
 		'baseline',
+		'measurement',
 		'measurer',
-		'measurement'
+		'defaultFontSize'
 	],
 	#classVars : [
 		'DefaultText',
@@ -53,13 +54,6 @@ BlTextElement >> acquireParagraph [
 	^ aParagraph
 ]
 
-{ #category : #'api - text' }
-BlTextElement >> ascentBaseline [
-	self deprecated: 'Use `#labelMeasurement` instead'.
-	
-	self labelMeasurement
-]
-
 { #category : #accessing }
 BlTextElement >> baseline [
 	
@@ -79,11 +73,9 @@ BlTextElement >> baselineOffset [
 		ifNil: [ 0 ]
 ]
 
-{ #category : #'api - text' }
-BlTextElement >> boundsBaseline [
-	self deprecated: 'Use `#tightMesurement` instead'.
-
-	self tightMeasurement
+{ #category : #layout }
+BlTextElement >> basicMeasureParagraph: aBlTextParagraph [
+	measurer measureTextParagraph: aBlTextParagraph of: self
 ]
 
 { #category : #layout }
@@ -129,17 +121,28 @@ BlTextElement >> createTextParagraph [
 	^ BlSingleLineTextParagraph new
 ]
 
+{ #category : #'api - font size' }
+BlTextElement >> defaultFontSize: aNumber [	
+	defaultFontSize = aNumber
+		ifTrue: [ ^ self ].
+
+	defaultFontSize := aNumber.
+	
+	self text defaultFontSize: aNumber.
+	self textChanged
+]
+
+{ #category : #initialization }
+BlTextElement >> defaultMeasurer [
+	^ BlTextElementHostMeasurer new
+]
+
 { #category : #initialization }
 BlTextElement >> defaultText [
 	"Return a default text I should be created with"
 	<return: #BlText>
 
 	^ DefaultText
-]
-
-{ #category : #initialization }
-BlTextElement >> defaultTextMeasurer [
-	^ BlTextElementOffscreenCanvasMeasurer new
 ]
 
 { #category : #'selection - management' }
@@ -158,39 +161,30 @@ BlTextElement >> editorMeasurement [
 	self baseline: BlTextParagraphAscentLooseBaseline uniqueInstance
 ]
 
-{ #category : #'api - text' }
-BlTextElement >> editorMesurement [
-	self deprecated: 'Use `#editorMeasurement` instead'.
-
-	self editorMeasurement
-]
-
 { #category : #geometry }
 BlTextElement >> indexAtScreenPosition: aPoint [
 	<return: #Number>
 
-	^ self paragraph
-		indexAtPosition: aPoint - self padding topLeft
-		on: self measurer measurer
+	^ self paragraph indexAtPosition: aPoint - self padding topLeft
 ]
 
 { #category : #initialization }
 BlTextElement >> initialize [
 	super initialize.
-	
+
 	self tightMeasurement.
-	
+
 	text := self defaultText.
 	"Text layout is created during measurement in onMeasure:"
 	paragraph := nil.
-	
+	measurer := self defaultMeasurer.
+
 	self constraintsDo: [ :c | 
 		c horizontal fitContent.
 		c vertical fitContent ].
 
 	selection := BlCompositeSelection new.
-	measurer := self defaultTextMeasurer.
-	
+
 	"self debug: true"
 ]
 
@@ -198,13 +192,6 @@ BlTextElement >> initialize [
 BlTextElement >> labelMeasurement [
 	self measurement: BlTextElementLabelMeasurementStrategy uniqueInstance.
 	self baseline: BlTextParagraphAscentTightBaseline uniqueInstance
-]
-
-{ #category : #'api - text' }
-BlTextElement >> looseMesurement [
-	self deprecated: 'Use `#labelMeasurement` instead'.
-
-	self labelMeasurement
 ]
 
 { #category : #layout }
@@ -229,7 +216,9 @@ BlTextElement >> measureChildren: anExtentMeasurementSpec [
 				usedSize: 0.0
 				resizer: aHeightResizer ].
 	
-		aChild measure: aWidthSpec @ aHeightSpec ]
+		aChild measure: aWidthSpec @ aHeightSpec ].
+	
+	self layout measureIgnored: self with: anExtentMeasurementSpec
 ]
 
 { #category : #layout }
@@ -260,7 +249,7 @@ BlTextElement >> measureParagraph: anExtentMeasurementSpec [
 
 	self telemetry
 		timeSync: [ 'Paragraph measureOn: ', self class name ]
-		during: [ paragraph measureOn: self measurer ].
+		during: [ self basicMeasureParagraph: paragraph ].
 
 	"text layout is measured at this point"
 
@@ -304,16 +293,27 @@ BlTextElement >> measurer [
 ]
 
 { #category : #accessing }
-BlTextElement >> measurer: aTextElementMeasurer [
-	measurer := aTextElementMeasurer.
+BlTextElement >> measurer: anObject [
+	measurer := anObject.
 	self textChanged
+]
+
+{ #category : #'hooks - session' }
+BlTextElement >> onAddedToSceneGraph [
+	super onAddedToSceneGraph.
+	
+	paragraph
+		ifNil: [ ^ self ].
+		
+	paragraph session == Smalltalk session
+		ifFalse: [ self textChanged ]
 ]
 
 { #category : #layout }
 BlTextElement >> onMeasure: anExtentMeasurementSpec [
 	self
 		assert: [ text isNotNil ]
-		description: [ 'Text model must be nil!' ].
+		description: [ 'Text model must not be nil!' ].
 
 	(self shouldMeasure: anExtentMeasurementSpec)
 		ifTrue: [ 
@@ -326,14 +326,11 @@ BlTextElement >> onMeasure: anExtentMeasurementSpec [
 		during: [ self measureChildren: anExtentMeasurementSpec ]
 ]
 
-{ #category : #'children hooks' }
-BlTextElement >> onRemovedFromSceneGraph [
-	super onRemovedFromSceneGraph.
+{ #category : #'hooks - session' }
+BlTextElement >> onSessionChanged: aNewSession [
+	super onSessionChanged: aNewSession.
 	
-	paragraph
-		ifNil: [ ^ self ].
-
-	self requestLayout
+	self textChanged
 ]
 
 { #category : #'private - paragraph' }
@@ -357,6 +354,9 @@ BlTextElement >> rawParagraph [
 { #category : #'private - paragraph' }
 BlTextElement >> releaseParagraph [
 	| aParagraph |
+	
+	paragraph
+		ifNil: [ ^ self ].
 
 	aParagraph := paragraph.
 
@@ -366,12 +366,17 @@ BlTextElement >> releaseParagraph [
 	paragraph := nil
 ]
 
+{ #category : #'api - font size' }
+BlTextElement >> resetDefaultFontSize [
+	defaultFontSize := nil
+]
+
 { #category : #geometry }
 BlTextElement >> screenPositionAt: aTextIndex [
 	<return: #Point>
 	| aScreenPosition |
 	
-	aScreenPosition := self paragraph positionAt: aTextIndex on: self measurer measurer.
+	aScreenPosition := self paragraph positionAt: aTextIndex.
 	^ (aScreenPosition x + self padding left) @ ((self height + self padding height) / 2.0)
 ]
 
@@ -422,8 +427,11 @@ BlTextElement >> shouldMeasure: anExtentMeasurementSpec [
 
 	paragraph
 		ifNil: [ ^ true ].
+		
+	paragraph isEmpty
+		ifTrue: [ ^ true ].
 
-	(self layout previousMeasurementSpec = anExtentMeasurementSpec)
+	(self privatePreviousMeasurementSpec = anExtentMeasurementSpec)
 		ifFalse: [ ^ true ].
 
 	paragraph maxWidth = (self computeMaxWidth: anExtentMeasurementSpec)
@@ -453,30 +461,31 @@ BlTextElement >> text [
 ]
 
 { #category : #accessing }
-BlTextElement >> text: aTextModel [
+BlTextElement >> text: aBlText [
 	"Change a text I represent.
 	Note, that aTextModel should be an instance of BrText.
 	aTextModel must not be nil"
 
 	self
-		assert: [ aTextModel isNotNil ]
-		description: [ 'A text model must not be nil' ].
+		assert: [ aBlText isNotNil ]
+		description: [ 'A text must not be nil' ].
 		
 	self
-		assert: [ aTextModel isKindOf: BlText ]
-		description: [ 'A text model must be an instance of Text' ].
-		
-	text = aTextModel
+		assert: [ aBlText isKindOf: BlText ]
+		description: [ 'A text must be an instance of Text' ].
+
+	text = aBlText
 		ifTrue: [ ^ self ].
 
-	text := aTextModel.
+	text := aBlText.
+	defaultFontSize ifNotNil: [ :aDefaultFontSize | text defaultFontSize: aDefaultFontSize ].
 	self textChanged
 ]
 
 { #category : #'change reporting' }
 BlTextElement >> textChanged [
 	"text layout is no more valid, remove it"
-	paragraph := nil.
+	self releaseParagraph.
 
 	"request redraw and layout"
 	self requestLayout.
@@ -494,11 +503,4 @@ BlTextElement >> textDo: aBlock [
 BlTextElement >> tightMeasurement [
 	self measurement: BlTextElementTightMeasurementStrategy uniqueInstance.
 	self baseline: BlTextParagraphBoundsBaseline uniqueInstance
-]
-
-{ #category : #'api - text' }
-BlTextElement >> tightMesurement [
-	self deprecated: 'Use `#tightMeasurement` instead'.
-
-	self tightMeasurement
 ]

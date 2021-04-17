@@ -111,15 +111,15 @@ BlGlutinHost class >> spaceRegistry [
 BlGlutinHost class >> start [
 	PulseLoop start.
 
-	GlutinEventsFetcher default
+	GlutinEventFetcher default
 		addEventHandler: UserInterruptEventHandler;
 		addEventHandler: EventsSensor.
-	GlutinEventsFetcher install
+	GlutinEventFetcher install
 ]
 
 { #category : #'api - lifecycle' }
 BlGlutinHost class >> stop [
-	GlutinEventsFetcher default
+	GlutinEventFetcher default
 		removeEventHandler: UserInterruptEventHandler;
 		removeEventHandler: EventsSensor.
 	PulseLoop stop
@@ -159,7 +159,9 @@ BlGlutinHost >> createWindowSpaceFor: aSpace [
 		withMaximized: aSpace maximized;
 		withFullSize: aSpace fullsize.
 	
-	windowedContext := GlutinEventsFetcher default eventLoop createWindow: windowBuilder.
+	windowedContext := GlutinEventFetcher default eventLoop createWindow: windowBuilder.
+	aSpace knowsPosition
+		ifTrue: [ windowedContext position: aSpace position ].
 	
 	aHostSpace := BlGlutinHostSpace new.
 	aHostSpace window: windowedContext.
@@ -207,13 +209,6 @@ BlGlutinHost >> isStillAvailable [
 	^ self class isSupported
 ]
 
-{ #category : #'host - api' }
-BlGlutinHost >> openMorphicWorld [
-	self class hdpiRenderer
-		ifTrue: [ GlutinWorldSpartaRenderer openMorphicWorld ]
-		ifFalse: [ GlutinWorldOpenGLRenderer openMorphicWorld ]
-]
-
 { #category : #initialize }
 BlGlutinHost >> registerHostSpace: aHostSpace [
 	HostSpaceRegistryMutex critical: [ self spaceRegistry at: aHostSpace window id put: aHostSpace ]
@@ -222,14 +217,6 @@ BlGlutinHost >> registerHostSpace: aHostSpace [
 { #category : #private }
 BlGlutinHost >> spaceRegistry [
 	^ self class spaceRegistry
-]
-
-{ #category : #'host - testing' }
-BlGlutinHost >> supportsBufferSurface [
-	"Return true if this host can work with buffer surface, false otherwise"
-	<return: #Boolean>
-	
-	^ true
 ]
 
 { #category : #'host - testing' }

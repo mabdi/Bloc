@@ -32,7 +32,11 @@ BlElementEventDispatcher >> disableEventType: anEventClass [
 
 { #category : #'api - general events' }
 BlElementEventDispatcher >> disableGeneralEventType: anEventClass [
-	activatedGeneralEvents remove: anEventClass ifAbsent: [  ]
+	activatedGeneralEvents
+		ifNil: [ ^ self ].
+	activatedGeneralEvents remove: anEventClass ifAbsent: [  ].
+	activatedGeneralEvents
+		ifEmpty: [ activatedGeneralEvents := nil ]
 ]
 
 { #category : #'api - event managing' }
@@ -45,12 +49,6 @@ BlElementEventDispatcher >> dispatchAddedToParent [
 BlElementEventDispatcher >> dispatchAddedToSceneGraph [
 	activatedElementEvents hasAddedToSceneGraph
 		ifTrue: [ self dispatchEvent: (BlElementAddedToSceneGraphEvent from: self owner) ]
-]
-
-{ #category : #'api - event managing' }
-BlElementEventDispatcher >> dispatchAddedToSuperParent: anElement [
-	activatedElementEvents hasAddedToSuperParent
-		ifTrue: [ self dispatchEvent: ((BlElementAddedToSuperParentEvent from: self owner) addedElement: anElement) ]
 ]
 
 { #category : #'api - event managing' }
@@ -126,6 +124,18 @@ BlElementEventDispatcher >> dispatchSelectionLost [
 		ifTrue: [ self dispatchEvent: (BlElementSelectionLostEvent from: self) ]
 ]
 
+{ #category : #'api - event managing' }
+BlElementEventDispatcher >> dispatchTransformationChanged [
+	activatedElementEvents hasTransformationChanged
+		ifTrue: [ self dispatchEvent: (BlElementTransformationChangedEvent from: self owner) ]
+]
+
+{ #category : #'api - event managing' }
+BlElementEventDispatcher >> dispatchTransformationInSpaceChanged [
+	activatedElementEvents hasTransformationInSpaceChanged
+		ifTrue: [ self dispatchEvent: (BlElementTransformationInSpaceChangedEvent from: self owner) ]
+]
+
 { #category : #'api - element events' }
 BlElementEventDispatcher >> enableAddedToParent [
 	activatedElementEvents addAddedToParent
@@ -163,6 +173,8 @@ BlElementEventDispatcher >> enableExtentChanged [
 
 { #category : #'api - general events' }
 BlElementEventDispatcher >> enableGeneralEventType: anEventClass [
+	activatedGeneralEvents
+		ifNil: [ activatedGeneralEvents := self newActivatedGeneralEvents ].
 	activatedGeneralEvents add: anEventClass
 ]
 
@@ -206,6 +218,16 @@ BlElementEventDispatcher >> enableSelectionLost [
 	activatedElementEvents addSelectionLost
 ]
 
+{ #category : #'api - element events' }
+BlElementEventDispatcher >> enableTransformationChanged [
+	activatedElementEvents addTransformationChanged
+]
+
+{ #category : #'api - element events' }
+BlElementEventDispatcher >> enableTransformationInSpaceChanged [
+	activatedElementEvents addTransformationInSpaceChanged
+]
+
 { #category : #'gt-extension' }
 BlElementEventDispatcher >> gtEventsFor: aView [
 	<gtView>
@@ -214,7 +236,7 @@ BlElementEventDispatcher >> gtEventsFor: aView [
 		title: 'Events';
 		items: [ (activatedElementEvents asDictionary associations
 				sorted: [ :a :b | a key < b key ])
-				, (activatedGeneralEvents asArray collect: [ :each | each -> true ]) ];
+				, ((activatedGeneralEvents ifNil: [ #() ]) asArray collect: [ :each | each -> true ]) ];
 		column: 'Type' item: [ :each | each key ];
 		column: 'Enabled' item: [ :each | each value ]
 ]
@@ -224,7 +246,15 @@ BlElementEventDispatcher >> initialize [
 	super initialize.
 
 	activatedElementEvents := BlElementEventDispatcherActivatedEvents new.
-	activatedGeneralEvents := Set new
+	
+	"IdentitySet on 64bit systems occupies in total 72 bytes, which is quite a lot.
+	Since we do not provide accessors it is fine to initialize it lazily"
+	activatedGeneralEvents := nil
+]
+
+{ #category : #initialization }
+BlElementEventDispatcher >> newActivatedGeneralEvents [
+	^ IdentitySet new
 ]
 
 { #category : #'api - element events' }
@@ -264,7 +294,9 @@ BlElementEventDispatcher >> wantsExtentChanged [
 
 { #category : #'api - general events' }
 BlElementEventDispatcher >> wantsGeneralEventType: anEventClass [
-	^ activatedGeneralEvents includes: anEventClass
+	^ activatedGeneralEvents
+		ifNil: [ false ]
+		ifNotNil: [ :theActivatedEvents | theActivatedEvents includes: anEventClass ]
 ]
 
 { #category : #'api - element events' }
@@ -305,4 +337,14 @@ BlElementEventDispatcher >> wantsSelectionAcquired [
 { #category : #'api - element events' }
 BlElementEventDispatcher >> wantsSelectionLost [
 	^ activatedElementEvents hasSelectionLost
+]
+
+{ #category : #'api - element events' }
+BlElementEventDispatcher >> wantsTransformationChanged [
+	^ activatedElementEvents hasTransformationChanged
+]
+
+{ #category : #'api - element events' }
+BlElementEventDispatcher >> wantsTransformationInSpaceChanged [
+	^ activatedElementEvents hasTransformationInSpaceChanged
 ]

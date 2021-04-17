@@ -69,7 +69,8 @@ BlCompositionPainter class >> repaintSpace: aSpace [
 			aSpace telemetry
 				timeSync: 'Repaint root'
 				during: [ BlCompositionPainter repaintCompositedElement: aSpace root ]  ].
-
+	
+	aSpace root withAllChildrenBreadthFirstDo: [ :eachChild | eachChild markDoesNotNeedPaint ].
 	aRootLayer computeNeedsComposition.
 	^ aRootLayer
 ]
@@ -110,7 +111,7 @@ BlCompositionPainter >> addLayer: aCompositionLayer [
 { #category : #'private - layer' }
 BlCompositionPainter >> applyClip: aClipPath offset: anOffset thenPaint: aPaintBlock [
 	<argument: #anOffset satisfies: #isSpartaScalarPoint>
-
+	
 	self canvasDo: [ :aCanvas |
 		aCanvas clip push: aClipPath offset: anOffset ].
 	state pushClip: aClipPath offset: anOffset.
@@ -136,23 +137,20 @@ BlCompositionPainter >> applyShadow: aShadowPath shadowOffset: aShadowOffset sha
 
 { #category : #'private - layer' }
 BlCompositionPainter >> applyTransform: aMatrix offset: anOffset thenPaint: aPaintBlock [
-	| aTransform |
-
-	aTransform := self
-		canvasDo: [ :aCanvas |
-			aCanvas transform
-				translateBy: anOffset;
-				multiplyBy: aMatrix;
-				push ]
-		ifAbsent: [ nil ].
+	| thePoppedState |
+	
+	self canvasDo: [ :aCanvas |
+		aCanvas transform
+			translateBy: anOffset;
+			multiplyBy: aMatrix;
+			push ].
 	
 	state pushTransform: aMatrix offset: anOffset.
 	
 	aPaintBlock cull: self cull: 0@0.
-	
-	self canvasDo: [ :aCanvas | aTransform ifNotNil: [ aCanvas transform pop: aTransform ] ].
 
-	state pop
+	thePoppedState := state pop.
+	self canvasDo: [ :aCanvas | thePoppedState popOn: aCanvas ]
 ]
 
 { #category : #converting }
@@ -209,47 +207,6 @@ BlCompositionPainter >> containerLayer: aBlCompositionContainerLayer [
 		description: [ 'Container layer can not be changed' ].
 	
 	containerLayer := aBlCompositionContainerLayer
-]
-
-{ #category : #'gt-extensions' }
-BlCompositionPainter >> gtLayersTreeFor: aView [
-	<gtView>
-	
-	^ aView forward
-		title: 'Layers';
-		priority: 2;
-		object: [ self containerLayer ];
-		view: #gtTreeFor:
-]
-
-{ #category : #'gt-extensions' }
-BlCompositionPainter >> gtPreviewFor: aView [
-	<gtView>
-	
-	^ aView explicit
-		title: 'Preview';
-		priority: 3;
-		stencil: [
-			| aCanvas aSkiaLayer aCompositor |
-			
-			aCanvas := SkiaCanvas extent: self bounds extent ceiling asIntegerPoint.
-			aSkiaLayer := self containerLayer asSkiaLayer.
-			
-			aCompositor := SkiaCompositor workers: 1.
-			
-			aCompositor draw: aSkiaLayer on: aCanvas.
-			aCanvas asForm ]
-]
-
-{ #category : #'gt-extensions' }
-BlCompositionPainter >> gtSymbolTreeFor: aView [
-	<gtView>
-	
-	^ aView forward
-		title: 'Tree Print';
-		priority: 4;
-		object: [ self containerLayer ];
-		view: #gtSymbolTreeFor:
 ]
 
 { #category : #'private - canvas' }

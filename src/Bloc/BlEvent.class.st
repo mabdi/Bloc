@@ -36,6 +36,30 @@ BlEvent class >> fireEvent: anEvent [
 ]
 
 { #category : #'event management' }
+BlEvent class >> fireEvent: anEvent from: aTopEventTarget [
+	<return: #BlEvent>
+
+	^ self fireEvent: anEvent from: aTopEventTarget to: anEvent target
+]
+
+{ #category : #'event management' }
+BlEvent class >> fireEvent: anEvent from: aTopEventTarget to: aTargetEventTarget [
+	<return: #BlEvent>
+	| theEvent aDispatcherChain |
+
+	theEvent := anEvent.
+
+	anEvent hasSource
+		ifFalse: [ anEvent source: aTargetEventTarget ].
+
+	anEvent target = aTargetEventTarget
+		ifFalse: [ theEvent := anEvent newCopyFor: aTargetEventTarget].
+
+	aDispatcherChain := aTargetEventTarget buildEventDispatchChain: BlEventDispatcherChain empty upTo: aTopEventTarget.
+	^ aDispatcherChain dispatchEvent: theEvent
+]
+
+{ #category : #'event management' }
 BlEvent class >> fireEvent: anEvent target: anEventTarget [
 	<return: #BlEvent>
 	| theEvent aDispatcherChain |
@@ -67,6 +91,21 @@ BlEvent class >> target: anObject [
 		yourself
 ]
 
+{ #category : #private }
+BlEvent class >> targetToDictionaryForExport: anObject [
+	| aDictionary |
+
+	aDictionary := OrderedDictionary new 
+		at: #class put: anObject class name;
+		at: #hash put: anObject identityHash;
+		yourself.
+
+	(anObject respondsTo: #id)
+		ifTrue: [ aDictionary at: #id put: anObject id asString ].
+
+	^ aDictionary
+]
+
 { #category : #'api - enable / disable' }
 BlEvent class >> wantedIn: anEventDispatcher [
 	^ anEventDispatcher wantsGeneralEventType: self
@@ -79,6 +118,19 @@ BlEvent >> arrivedTarget: aTBlEventTarget [
 		description: [ 'Target must not be nil' ].
 
 	currentTarget := aTBlEventTarget
+]
+
+{ #category : #converting }
+BlEvent >> asDictionaryForExport [
+	^ OrderedDictionary new 
+		at: #event put: self class name;
+		at: #source put: (source ifNotNil: [ :aSource | self class targetToDictionaryForExport: aSource ]);
+		at: #target put: (target ifNotNil: [ :aTarget | self class targetToDictionaryForExport: aTarget ]);
+		at: #currentTarget put: (currentTarget ifNotNil: [ :aCurrentTarget | self class targetToDictionaryForExport: aCurrentTarget ]);
+		at: #timestamp put: timestamp asString;
+		at: #canBePropagated put: canBePropagated;
+		at: #consumed put: consumed;
+		yourself
 ]
 
 { #category : #'private - steps' }
@@ -281,6 +333,11 @@ BlEvent >> isTextInput [
 
 { #category : #testing }
 BlEvent >> isTouch [
+	^ false
+]
+
+{ #category : #testing }
+BlEvent >> isUIEvent [
 	^ false
 ]
 

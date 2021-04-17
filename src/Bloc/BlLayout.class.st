@@ -82,13 +82,6 @@ Class {
 	#superclass : #Object,
 	#traits : 'TBlDebug',
 	#classTraits : 'TBlDebug classTrait',
-	#instVars : [
-		'requestingLayout',
-		'previousMeasurementSpec',
-		'direction',
-		'waitingLayout',
-		'ignoreLayoutRequests'
-	],
 	#category : #'Bloc-Layouts-Basic'
 }
 
@@ -119,6 +112,18 @@ BlLayout >> align: aChildElement horizontal: aBlAlignment [
 	"
 ]
 
+{ #category : #'private - alignment' }
+BlLayout >> align: elementBounds in: theParentBounds with: aBlElementAlignment [
+	"I don't additionally take element margin or parent padding"
+	| aTranslation alignment |
+
+	"a composite alignment"
+	alignment := aBlElementAlignment directed: self direction.
+	aTranslation := alignment translationOf: elementBounds in: theParentBounds.
+
+	^ elementBounds translateBy: aTranslation
+]
+
 { #category : #'api - alignment' }
 BlLayout >> align: aChildElement vertical: aBlAlignment [
 	"I should be used to dispatch children alignment configuration through layout to provide higher level uniform alignment api.	
@@ -129,21 +134,16 @@ BlLayout >> align: aChildElement vertical: aBlAlignment [
 	"
 ]
 
-{ #category : #initialization }
+{ #category : #'api - direction' }
 BlLayout >> defaultDirection [
 	<return: #BlLayoutDirection>
 
 	^ BlLayoutDirection leftToRight
 ]
 
-{ #category : #direction }
+{ #category : #'api - direction' }
 BlLayout >> direction [
-	^ direction
-]
-
-{ #category : #direction }
-BlLayout >> direction: aBlLayoutDirection [
-	direction := aBlLayoutDirection
+	^ self defaultDirection
 ]
 
 { #category : #geometry }
@@ -155,22 +155,10 @@ BlLayout >> findClosestChildOf: anElement to: aPoint [
 ]
 
 { #category : #protected }
-BlLayout >> ignoreRequestLayoutDuring: aBlock [
-	| wasIgnored |
+BlLayout >> isInfluencedByTransformation [
+	"Return true if the layout may be influenced by the element's transformation"
 
-	wasIgnored := ignoreLayoutRequests.
-	ignoreLayoutRequests := true.
-	aBlock ensure: [ ignoreLayoutRequests := wasIgnored ]
-]
-
-{ #category : #initialization }
-BlLayout >> initialize [
-	super initialize.
-	
-	requestingLayout := true.
-	waitingLayout := true.
-	ignoreLayoutRequests := false.
-	direction := self defaultDirection
+	^ false
 ]
 
 { #category : #enumeration }
@@ -185,11 +173,11 @@ BlLayout >> layeredChildren: anElement do: aBlock [
 ]
 
 { #category : #layout }
-BlLayout >> layout: anElement in: aRectangle [
+BlLayout >> layout: anElement in: aRectangle context: aBlElementBoundsUpdateContext [
 ]
 
 { #category : #layout }
-BlLayout >> layoutIgnored: anElement [
+BlLayout >> layoutIgnored: anElement context: aBlElementBoundsUpdateContext [
 	"Layout children ignored by layout so that their measured bounds
 	become actual bounds in parent"
 	| parentBounds |
@@ -208,19 +196,20 @@ BlLayout >> layoutIgnored: anElement [
 
 			"frame layout supports alignment, so we need to translate child's bounds accordingly to alignment"
 			childBounds := self
-				align: aChild
-				bounds: childBounds
+				align: childBounds
 				in: allowedBounds
 				with: aChild constraints ignored alignment.
 				
 			aChild measuredBounds position: childBounds origin.
 			"and finally set new bounds"
-			aChild applyLayoutIn: childBounds ]
+			aChild applyLayoutIn: childBounds context: aBlElementBoundsUpdateContext ]
 ]
 
-{ #category : #direction }
-BlLayout >> leftToRight [
-	direction := BlLayoutDirection leftToRight
+{ #category : #protected }
+BlLayout >> mayInfluencePosition [
+	"Return true if the layout may influence the position of the element with this layout"
+
+	^ false
 ]
 
 { #category : #measure }
@@ -356,7 +345,7 @@ BlLayout >> measurementSpecFor: parentSpec usedSize: usedSize resizer: childResi
 	<return: #BlMeasurementSpec>
 	| size |
 
-   size := 0.0 max: ((parentSpec size ifNil: [ 0.0 ]) - usedSize).
+   size := 0.0 max: (parentSpec size - usedSize).
 
 	^ parentSpec mode measurement: childResizer with: size
 ]
@@ -372,77 +361,4 @@ BlLayout >> onLayoutDone: anElement [
 	"Is sent after layout is completely computed.
 	All layout changes done within this hook will be performed during the next frame.
 	Note: I am sent before the drawing process"
-]
-
-{ #category : #private }
-BlLayout >> previousMeasurementSpec [
-	^ previousMeasurementSpec
-]
-
-{ #category : #private }
-BlLayout >> previousMeasurementSpec: anObject [
-	previousMeasurementSpec := anObject
-]
-
-{ #category : #protected }
-BlLayout >> requestLayout: anElement from: aSourceElement [
-	"Request invalidation of layout on next space pulse originally
-	emitted by a given element.
-	Note: there should be no ===self isLayoutRequested ifTrue: [ ^ self ]===
-	check since there can be a case when I am requesting layout, but my parent
-	still does not"
-	
-	ignoreLayoutRequests
-		ifTrue: [ ^ self ].
-
-	self requestingLayout: true.
-	"checking for parent to be not nil is faster when inlined instead
-	of using hasParent. It is critical because this method is being
-	sent quite often and should be performant"
-	anElement parent
-		ifNotNil: [ :aParent | aParent requestLayout: aSourceElement ]
-		"There is no parent, probably I am a root element, let's check Space"
-		ifNil: [ anElement space
-			"If my parent is nil, but I am added to space, we need to let it know that we requested a layout by asking for a next pulse"
-			ifNotNil: [ :aSpace | aSpace requestNextPulse ] ]
-]
-
-{ #category : #protected }
-BlLayout >> requestingLayout [
-	"Return true if element requested layout on next space pulse, false otherwise"
-	<return: #Boolean>
-
-	^ requestingLayout
-]
-
-{ #category : #protected }
-BlLayout >> requestingLayout: aBoolean [
-
-	aBoolean
-		ifTrue: [ waitingLayout := true ]
-		ifFalse: [ self waitingLayout
-			ifTrue: [ ^ self ] ].
-
-	requestingLayout := aBoolean
-]
-
-{ #category : #direction }
-BlLayout >> rightToLeft [
-	direction := BlLayoutDirection rightToLeft
-]
-
-{ #category : #protected }
-BlLayout >> waitingLayout [
-	"Return true if my owner element is still waiting for the start of layout pass, false otherwise"
-	<return: #Boolean>
-
-	^ waitingLayout
-]
-
-{ #category : #protected }
-BlLayout >> waitingLayout: aBoolean [
-	"Change my layout waiting state. If aBoolean is false it would mean that measurement and
-	layout pass began, true means that I still have to wait"
-
-	waitingLayout := aBoolean
 ]

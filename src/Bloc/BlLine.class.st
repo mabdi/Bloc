@@ -18,17 +18,6 @@ BlLine class >> from: aFromPoint to: aToPoint [
 	^ self new from: aFromPoint to: aToPoint
 ]
 
-{ #category : #converting }
-BlLine >> asElement [
-	<return: #BlElement>
-
-	^ BlLineElement new
-		border: (BlBorder builder paint: Color gray; width: 2; build);
-		fromAnchor: (BlAbsolutePositionAnchor position: self from);
-		toAnchor: (BlAbsolutePositionAnchor position: self to);
-		yourself
-]
-
 { #category : #'geometry testing' }
 BlLine >> containsPoint: aPoint in: anElement on: aSpartaCanvas [
 	"Note: I am a fallback method to determine if a point lies within a geometry path
@@ -77,6 +66,26 @@ BlLine >> initialize [
 
 	from := 0@0.
 	to := 0@0
+]
+
+{ #category : #accessing }
+BlLine >> intersectionWith: anotherSegment [
+	"Copied from LineSegment>>intersectionWith:"
+	| det deltaPt alpha beta pt1Dir pt2Dir |
+	pt1Dir := to - from.
+	pt2Dir := anotherSegment to - anotherSegment from.
+	det := (pt1Dir x * pt2Dir y) - (pt1Dir y * pt2Dir x).
+	deltaPt := anotherSegment from - from.
+	alpha := (deltaPt x * pt2Dir y) - (deltaPt y * pt2Dir x).
+	beta := (deltaPt x * pt1Dir y) - (deltaPt y * pt1Dir x).
+	det = 0 ifTrue:[^nil]. "no intersection"
+	alpha * det < 0 ifTrue:[^nil].
+	beta * det < 0 ifTrue:[^nil].
+	det > 0 
+		ifTrue:[(alpha > det or:[beta > det]) ifTrue:[^nil]]
+		ifFalse:[(alpha < det or:[beta < det]) ifTrue:[^nil]].
+	"And compute intersection"
+	^from + (alpha * pt1Dir / (det@det))
 ]
 
 { #category : #geometry }

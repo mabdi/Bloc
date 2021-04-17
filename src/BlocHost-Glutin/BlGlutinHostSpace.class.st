@@ -11,12 +11,39 @@ Class {
 		'modifiers',
 		'scaleFactor'
 	],
+	#classVars : [
+		'ZoomFactor'
+	],
 	#category : #'BlocHost-Glutin-Host'
 }
+
+{ #category : #'class initialization' }
+BlGlutinHostSpace class >> initialize [
+	ZoomFactor := 1.0
+]
+
+{ #category : #accessing }
+BlGlutinHostSpace class >> zoomFactor [
+	^ ZoomFactor
+]
+
+{ #category : #accessing }
+BlGlutinHostSpace class >> zoomFactor: aNumber [
+	ZoomFactor := aNumber.
+	
+	self allSubInstancesDo: [ :eachHostSpace | eachHostSpace zoomFactorChanged ]
+]
 
 { #category : #'host space - displaying' }
 BlGlutinHostSpace >> close [
 	window close
+]
+
+{ #category : #private }
+BlGlutinHostSpace >> computeWindowScaleFactor: aScaleFactor [
+	<return: #Number>
+
+	^ aScaleFactor * self class zoomFactor
 ]
 
 { #category : #'event - handling' }
@@ -51,13 +78,6 @@ BlGlutinHostSpace >> convertKeyModifiers: theGlutinModifiers [
 		ctrl: theGlutinModifiers ctrl
 		alt: theGlutinModifiers alt
 		cmd: theGlutinModifiers logo
-]
-
-{ #category : #initialization }
-BlGlutinHostSpace >> createBufferSurfaceRenderer [
-	<return: #BlHostSurfaceRenderer>
-	
-	^ BlGlutinBufferSurfaceRenderer new window: self window
 ]
 
 { #category : #initialization }
@@ -114,7 +134,7 @@ BlGlutinHostSpace >> id [
 BlGlutinHostSpace >> initialize [
 	super initialize.
 
-	mousePosition := GtFensterPhysicalPosition new.
+	mousePosition := FensterPhysicalPosition new.
 	scaleFactor := nil.
 	eventFetcher := BlHostEventFetcher hostSpace: self.
 	modifiers := BlKeyModifiers new
@@ -130,7 +150,7 @@ BlGlutinHostSpace >> logicalSize [
 	"Returns the logical size of the host's client area.
 	The client area is the content of the window, excluding the title bar and borders.
 	Converting the returned LogicalSize to PhysicalSize produces the size your framebuffer should be."
-	<return: #GtFensterLogicalSize>
+	<return: #FensterLogicalSize>
 
 	^ self physicalSize asLogical: self scaleFactor
 ]
@@ -155,11 +175,11 @@ BlGlutinHostSpace >> physicalSize [
 	"Return a physical host size which is what the framebuffer size should be.
 	This size may differ from the logical size on high dpi (retina) screens.
 	In most cases physical size is x2 larger than logical size on retina screens."
-	<return: #GtFensterPhysicalSize>
+	<return: #FensterPhysicalSize>
 	| anExtent |
 	
 	anExtent := window innerExtent.
-	^ GtFensterPhysicalSize width: anExtent x height: anExtent y
+	^ FensterPhysicalSize width: anExtent x height: anExtent y
 ]
 
 { #category : #'host space - geometry' }
@@ -191,7 +211,29 @@ BlGlutinHostSpace >> scaleFactor [
 	On high dpi (retina) displays scaling factor is > 1"
 	<return: #Number>
 
-	^ scaleFactor ifNil: [ scaleFactor := window scaleFactor ]
+	^ scaleFactor ifNil: [ scaleFactor := self computeWindowScaleFactor: window scaleFactor ]
+]
+
+{ #category : #private }
+BlGlutinHostSpace >> scaleFactorChangedTo: aScaleFactor physicalSize: aFensterPhysicalSize [
+	| aBlocEvent |
+
+	scaleFactor := self computeWindowScaleFactor: aScaleFactor.
+
+	aBlocEvent := BlSpaceScaleFactorChangedEvent new
+		scaleFactor: scaleFactor;
+		timestamp: DateAndTime now;
+		yourself.
+
+	self enqueueEvent: aBlocEvent.
+
+	aBlocEvent := BlSpaceResizedEvent new
+		extent: (aFensterPhysicalSize asLogical: scaleFactor) asPoint;
+		timestamp: DateAndTime now;
+		yourself.
+
+	self enqueueEvent: aBlocEvent.
+	self universe ifNotNil: [ :aUniverse | aUniverse pulse ]
 ]
 
 { #category : #'host space - displaying' }
@@ -252,7 +294,7 @@ BlGlutinHostSpace >> visitCursorLeftEvent: anEvent [
 BlGlutinHostSpace >> visitCursorMovedEvent: anEvent [
 	| aBlocEvent aNewCursorPosition aDelta |
 
-	aNewCursorPosition := GtFensterPhysicalPosition x: anEvent x y: anEvent y.
+	aNewCursorPosition := FensterPhysicalPosition x: anEvent x y: anEvent y.
 
 	aDelta := aNewCursorPosition - mousePosition.
 
@@ -341,14 +383,14 @@ BlGlutinHostSpace >> visitMouseWheelEvent: anEvent [
 	aDelta := anEvent delta.
 	
 	aScrollDistance := aDelta type = GlutinEventMouseScrollDeltaType PixelDelta
-		ifTrue: [ aDelta x negated @ aDelta y ]
+		ifTrue: [ (aDelta x @ aDelta y) / self scaleFactor ]
 		ifFalse: [ aDelta type = GlutinEventMouseScrollDeltaType LineDelta
-			ifTrue: [ (aDelta x negated @ aDelta y) * (GlutinLibrary mouseWheelScrollSpeed) ]
+			ifTrue: [ (aDelta x @ aDelta y) * (GlutinLibrary mouseWheelScrollSpeed) ]
 			ifFalse: [ 0@0 ] ].
-		
+
 	aScrollDistance isZero
 		ifTrue: [ ^ self ].
-	
+
 	aBlocEvent := BlMouseWheelEvent new
 		isTouch: false;
 		vector: (BlVector x: aScrollDistance x y: aScrollDistance y);
@@ -419,7 +461,7 @@ BlGlutinHostSpace >> visitWindowResizedEvent: anEvent [
 	window resize: anEvent width @ anEvent height.
 
 	aBlocEvent := BlSpaceResizedEvent new
-		extent: ((GtFensterPhysicalSize width: anEvent width height: anEvent height) asLogical: scaleFactor) asPoint;
+		extent: ((FensterPhysicalSize width: anEvent width height: anEvent height) asLogical: self scaleFactor) asPoint;
 		timestamp: DateAndTime now;
 		yourself.
 
@@ -428,18 +470,11 @@ BlGlutinHostSpace >> visitWindowResizedEvent: anEvent [
 
 { #category : #'event - visiting' }
 BlGlutinHostSpace >> visitWindowScaleFactorChangedEvent: anEvent [
-	| aBlocEvent |
-
-	scaleFactor := anEvent scale_factor.
 	window resize: anEvent width @ anEvent height.
-	
-	aBlocEvent := BlSpaceResizedEvent new
-		extent: ((GtFensterPhysicalSize width: anEvent width height: anEvent height) asLogical: scaleFactor) asPoint;
-		timestamp: DateAndTime now;
-		yourself.
 
-	self enqueueEvent: aBlocEvent.
-	self universe pulse
+	self
+		scaleFactorChangedTo: anEvent scale_factor
+		physicalSize: (FensterPhysicalSize width: anEvent width height: anEvent height)
 ]
 
 { #category : #accessing }
@@ -456,5 +491,12 @@ BlGlutinHostSpace >> window: aGlutinWindowedContext [
 
 { #category : #'host space - geometry' }
 BlGlutinHostSpace >> windowExtent: anExtent [
-	window innerExtent: ((GtFensterLogicalSize width: anExtent x height: anExtent y) asPhysical: self scaleFactor) asPoint
+	window innerExtent: ((FensterLogicalSize width: anExtent x height: anExtent y) asPhysical: self scaleFactor) asPoint
+]
+
+{ #category : #private }
+BlGlutinHostSpace >> zoomFactorChanged [
+	self
+		scaleFactorChangedTo: window scaleFactor
+		physicalSize: self physicalSize
 ]

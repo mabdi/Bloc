@@ -171,10 +171,18 @@ BlLinearLayoutMeasurer >> limitedMeasure [
 	totalLength := totalLength - excessSpace.
 ]
 
-{ #category : #measurement }
-BlLinearLayoutMeasurer >> measure [
+{ #category : #'private - measurement' }
+BlLinearLayoutMeasurer >> measureExactUsingExcessSpace: aNode [
+	"Optimization: don't bother measuring children who are only laid out using excess space.
+	These views will get measured later if we have space to distribute."
+	
+	self subclassResponsibility
+]
 
-	layout ignoreRequestLayoutDuring: [ self preMeasure ].
+{ #category : #measurement }
+BlLinearLayoutMeasurer >> measureOn: anElement [
+
+	anElement ignoreRequestLayoutDuring: [ self preMeasure ].
 
 	self baselineMeasure.
 	self largestMeasure.
@@ -191,14 +199,6 @@ BlLinearLayoutMeasurer >> measure [
 	self weightedMeasure.
 	self postMeasure.
 	self uniformMeasure
-]
-
-{ #category : #'private - measurement' }
-BlLinearLayoutMeasurer >> measureExactUsingExcessSpace: aNode [
-	"Optimization: don't bother measuring children who are only laid out using excess space.
-	These views will get measured later if we have space to distribute."
-	
-	self subclassResponsibility
 ]
 
 { #category : #accessing }
@@ -422,7 +422,10 @@ BlLinearLayoutMeasurer >> weightedMeasure [
 						| shareSpace childLengthSpec childBreadthSpec |
 						
 						self flag: 'deal with precision'.
-						shareSpace := (childWeight * remainingExcess / remainingWeightSum) asFloat.
+						shareSpace := (remainingWeightSum closeTo: 0)
+							ifTrue: [ 0.0 ]
+							ifFalse: [ (childWeight * remainingExcess / remainingWeightSum) asFloat ].
+
 						remainingExcess := remainingExcess - shareSpace.
 						remainingWeightSum := remainingWeightSum - childWeight.
 

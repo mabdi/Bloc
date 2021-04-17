@@ -28,83 +28,59 @@ BaselineOfBloc >> baseline: spec [
 	<baseline>
 	spec for: #'common' do: [
 		spec postLoadDoIt: #'postLoadBloc:'.
+
 		spec 
-			baseline: 'BlocCore' with: [
-				spec repository: 'github://feenkcom/Bloc/src' ];
-			baseline: 'BlocLayout' with: [
-				spec repository: 'github://feenkcom/Bloc/src' ];
+			baseline: 'Beacon' with: [
+				spec repository: 'github://feenkcom/pharo-beacon/repository' ];
+			baseline: 'Fenster' with: [
+				spec repository: 'github://feenkcom/fenster/src' ];
 			baseline: 'Sparta' with: [
 				spec repository: 'github://feenkcom/Sparta/src' ];
-			baseline: 'SpartaSkia' with: [
-				spec repository: 'github://feenkcom/Sparta/src' ];
-			baseline: 'TaskIt' with: [
-				spec repository: 'github://feenkcom/taskit:feenk102' ];
-			baseline: 'GToolkitExamplesEngine' with: [
-				spec repository: 'github://feenkcom/gtoolkit-examples/src' ];
 			baseline: 'Glutin' with: [
 				spec repository: 'github://feenkcom/gtoolkit-glutin/src' ].
+		
 		spec 
-			package: #'Bloc-Geometry' with: [
-				spec requires: #(#BlocCore ). ];
+			package: #Bloc with: [
+				spec requires: #(#Beacon Fenster) ];
 			package: #'Bloc-Animation' with: [
-				spec requires: #(#BlocCore ). ];
-			package: #'Bloc-Infinite' with: [
-				spec requires: #(#BlocCore 'Bloc-Animation' ). ];
-			package: #'Bloc-Infinite-Layouts' with: [
-				spec requires: #('Bloc-Infinite' ). ];
-			package: #'Bloc-Animation-Tests' with: [
-				spec requires: #('Bloc-Animation' #GToolkitExamplesEngine ). ];
+				spec requires: #(#Bloc) ];
+			package: #'Bloc-Layout' with: [ "animation is required by animated layouts"
+				spec requires: #(#Bloc #'Bloc-Animation') ];
 			package: #'Bloc-Text' with: [
-				spec requires: #(#BlocCore ). ];
+				spec requires: #('Bloc'). ];
 			package: #'Bloc-Text-Rope' with: [
-				spec requires: #(#BlocCore 'Bloc-Text' ). ];
+				spec requires: #('Bloc' 'Bloc-Text') ];
 			package: #'Bloc-Text-Elements' with: [
-				spec requires: #(#BlocCore 'Bloc-Text' 'Bloc-Text-Rope' ). ];
-			package: #'Bloc-Sparta' with: [
-				spec requires: #(#BlocCore 'Bloc-Text' #Sparta 'Bloc-Compositor'). ];
-			package: #'Bloc-Exporter' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta' ). ];
-			package: #'Bloc-DevTool' with: [
-				spec requires: #(#BlocCore #BlocLayout ). ];
-			package: #'Bloc-Examples' with: [
-				spec requires: #('GToolkitExamplesEngine' 'BlocLayout' 'Bloc-Geometry' 'Bloc-Infinite' 'Bloc-Infinite-Layouts' 'Bloc-DevTool' 'Bloc-Text-Elements' ). ];
+				spec requires: #('Bloc' 'Bloc-Text' 'Bloc-Text-Rope'). ];
 			package: #'BlocHost-Mock' with: [
-				spec requires: #(#BlocCore ). ].
-
-		SystemVersion current major >= 8 ifTrue: [ 
-			spec
-				package: #'BlocHost-Morphic' with: [
-					spec requires: #(#BlocCore ). ] ]
-		ifFalse: [ 
-			spec
-				package: #'BlocHost-Morphic7' with: [
-					spec requires: #(#BlocCore ). ] ].
+				spec requires: #(#Bloc). ];
+			package: #'BlocHost-Morphic' with: [
+				spec requires: #(#'Bloc') ];
+			package: #'Bloc-Tests' with: [
+				spec requires: #(#Bloc 'BlocHost-Mock' ). ].
+			
+		spec 
+			package: #'BlocHost-Mock' with: [
+				spec requires: #(#Bloc). ];
+			package: #'BlocHost-Glutin' with: [
+				spec requires: #(#Bloc #Fenster #Glutin) ].
 		
 		"Compositor"
 		spec
 			package: #'Bloc-Compositor' with: [
-				spec requires: #(#BlocCore SpartaSkia). ];
-			package: #'Bloc-Compositor-Examples' with: [
-				spec requires: #('Bloc-Compositor' 'Bloc-Examples'). ];
-			package: #'Bloc-Compositor-GToolkit' with: [
-				spec requires: #('Bloc-Compositor'). ].
-		
+				spec requires: #(#Bloc 'Sparta'). ].
+			
 		spec
-			package: #'BlocHost-Glutin' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta' Glutin). ];
-			package: #'BlocHost-OSWindow' with: [
-				spec requires: #(#BlocCore 'Bloc-Sparta'). ];
-			package: #'BlocHost-OSWindow-SDL2' with: [
-				spec requires: #(#'BlocHost-OSWindow'). ];
-			package: #'Bloc-Extensions' with: [
-				spec requires: #('BlocCore' 'Bloc-Sparta' 'Bloc-Animation' 'Bloc-DevTool' ). ];
-			package: 'Bloc-TaskIt' with: [
-				spec requires: #('TaskIt' 'BlocCore' #'Bloc-Animation' #'Bloc-Text-Elements' ). ];
-			package: #'Bloc-Async' with: [
-				spec requires: #(#'Bloc-TaskIt' ). ];
-			package: #'Bloc-Images' with: [
-				spec requires: #(#'Bloc-Async' ). ]. ].
+			package: #'Bloc-Sparta' with: [
+				spec requires: #('Sparta' 'Bloc' 'Bloc-Text' 'Bloc-Text-Elements' 'Bloc-Compositor'). ];
+			package: #'Bloc-Exporter' with: [
+				spec requires: #(#Bloc 'Bloc-Sparta' ). ].
 
+		spec
+			package: #'Bloc-DevTool' with: [
+				spec requires: #(#Bloc #'Bloc-Layout' 'Bloc-Text-Elements' 'Bloc-Text-Rope'). ];
+			package: #'Bloc-Scripter' with: [
+				spec requires: #(#Bloc #'Bloc-Layout' #'Bloc-Exporter' #'BlocHost-Mock'). ] ].
 ]
 
 { #category : #'post load' }
@@ -113,15 +89,7 @@ BaselineOfBloc >> postLoadBloc: spec [
 		ifTrue: [ ^ self ].
 		
 	PostLoaded := true.
-	self postLoadDisableTaskItDebugger: spec.
 	self postLoadMorphicHost: spec
-	
-]
-
-{ #category : #'post load' }
-BaselineOfBloc >> postLoadDisableTaskItDebugger: spec [
-	(self class environment at: #TKTConfiguration) profileNamed: #gtTest.
-	(self class environment at: #TKTDebugger) disable.
 ]
 
 { #category : #'post load' }

@@ -1,12 +1,6 @@
 Extension { #name : #BlElement }
 
 { #category : #'*Bloc-Extensions' }
-BlElement >> gtInspectorChangesIn: aComposite [
-	<gtInspectorPresentationOrder: 20>  
-	^ self changes gtInspectorChangesIn: aComposite
-]
-
-{ #category : #'*Bloc-Extensions' }
 BlElement >> gtInspectorChildrenIn: composite [
 	<gtInspectorPresentationOrder: 80>
 	
@@ -95,7 +89,7 @@ BlElement >> gtInspectorMeasurementChainIn: aComposite [
 		display: [ withAllParents reversed withIndexCollect: [ :anElement :anIndex |
 				{
 					#index -> anIndex .
-					#spec -> anElement layout previousMeasurementSpec.
+					#spec -> anElement privatePreviousMeasurementSpec.
 					#element -> anElement.
 					#layout -> anElement layout
 				} asDictionary ]  ];
@@ -189,24 +183,41 @@ BlElement >> gtInspectorShortcutsIn: composite [
 ]
 
 { #category : #'*Bloc-Extensions' }
-BlElement >> gtInspectorTransformationsIn: aComposite [
-	<gtInspectorPresentationOrder: 19>
-	
-	aComposite
-		composite: [ :aTabbedComposite |
-			aTabbedComposite title: 'Transformation'.
-			(self transformation
-				gtInspectorTransformationsIn: aTabbedComposite)
-					title: 'Composition'.
-			self transformation
-				gtInspectorMatrixIn: aTabbedComposite.
-			self transformation
-				gtInspectorDecompositionIn: aTabbedComposite ].
-]
-
-{ #category : #'*Bloc-Extensions' }
 BlElement >> gtInspectorUserDataIn: composite [
 	<gtInspectorPresentationOrder: 20>  
 	^ (self userData gtInspectorItemsIn: composite) 
 		title: 'User data'
+]
+
+{ #category : #'*Bloc-Extensions' }
+BlElement >> gtPropertiesFor: aView [
+	<gtView>
+
+	^ aView forward
+		title: 'Properties';
+		priority: 11;
+		object: [ self properties ];
+		view: #gtPropertiesFor:
+]
+
+{ #category : #'*Bloc-Extensions' }
+BlElement >> gtStatesFor: aView [
+	<gtView>
+
+	^ aView forward
+		title: 'States';
+		priority: 10;
+		object: [ self states ];
+		view: #gtStatesFor:
+]
+
+{ #category : #'*Bloc-Extensions' }
+BlElement >> gtStylesFor: aView [
+	<gtView>
+
+	^ aView forward
+		title: 'Styles';
+		priority: 10;
+		object: [ self styles ];
+		view: #gtStylesFor:
 ]

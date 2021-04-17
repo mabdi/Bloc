@@ -46,6 +46,7 @@ BlTextParagraphMeasurer >> hasAvailableSpace [
 	<return: #Boolean>
 
 	^ self availableWidth > 0
+		and: [ self availableHeight > 0 ]
 ]
 
 { #category : #initialization }
@@ -78,10 +79,10 @@ BlTextParagraphMeasurer >> maxWidth: aNumber [
 ]
 
 { #category : #measurement }
-BlTextParagraphMeasurer >> measureSpan: aBlSpan of: aTextParagraph on: aCanvas with: aSpanMeasurer [
+BlTextParagraphMeasurer >> measureSpan: aBlSpan of: aTextParagraph with: aBlHostTextMeasurer [
 	| aParagraphSpan |
 
-	aParagraphSpan := aSpanMeasurer measureSpan: aBlSpan on: aCanvas.
+	aParagraphSpan := aBlHostTextMeasurer measureTextSpan: aBlSpan.
 	aParagraphSpan span: aBlSpan.
 
 	aParagraphSpan

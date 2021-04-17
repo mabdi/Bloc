@@ -13,12 +13,9 @@ BlElement >> asSpartaForm [
 
 	aCanvas := Bloc preferableSpartaCanvas extent: aBoundsInLocal extent ceiling.
 	
-	TBlDrawingCache
-		disableDrawingCacheFor: self
-		during: [
-			aCanvas transform
-				by: [ :aTransform | aTransform translateBy: aBoundsInLocal origin negated ]
-				during: [ self drawMeAndChildrenOnSpartaCanvas: aCanvas	 ] ].
+	aCanvas transform
+		by: [ :aTransform | aTransform translateBy: aBoundsInLocal origin negated ]
+		during: [ self drawMeAndChildrenOnSpartaCanvas: aCanvas	 ].
 
 	^ aCanvas asForm
 ]
@@ -87,7 +84,7 @@ BlElement >> drawOnSpartaCanvas: aCanvas [
 
 { #category : #'*Bloc-Sparta' }
 BlElement >> fullDrawOnSpartaCanvas: aCanvas [
-	needsPaint := false.
+	flags clearNeedsPaint.
 	
 	"We do not draw transparent elements at all"
 	self isTransparent

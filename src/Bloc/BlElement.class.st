@@ -55,20 +55,22 @@ Class {
 		'measuredBounds',
 		'boundsCache',
 		'eventDispatcher',
-		'shouldHandleMouseEvents',
-		'shouldChildrenHandleMouseEvents',
 		'constraints',
 		'layout',
-		'changes',
 		'transformation',
 		'taskQueue',
 		'errorHandler',
-		'needsPaint',
 		'userData',
-		'visuals'
+		'visuals',
+		'flags'
 	],
 	#category : #'Bloc-Basic'
 }
+
+{ #category : #'instance creation' }
+BlElement class >> epsilon [
+	^ 0.01
+]
 
 { #category : #'api - animations' }
 BlElement >> addAnimation: aBlBaseAnimation [
@@ -87,22 +89,39 @@ BlElement >> addChild: anElement [
 ]
 
 { #category : #'children add/remove' }
-BlElement >> addChild: anElement as: aContainerName [
+BlElement >> addChild: anElement after: anotherElement [
+	"Add anElement as my direct child right after anotherElement.
+	Throws an ${class:BlChildDoesNotExistError}$ if anotherElement is not my direct child.
+	anElement must not be a direct child of any other element!
+	anElement must not be nil"
+	| anotherElementIndex |
+
+	anotherElementIndex := self childIndexOf: anotherElement.
+	anotherElementIndex isZero
+		ifTrue: [
+			(BlChildDoesNotExistError new
+				parent: self;
+				child: anotherElement) signal ].
+
+	self addChild: anElement at: (anotherElementIndex + 1)
+]
+
+{ #category : #'children add/remove' }
+BlElement >> addChild: anElement as: aBlElementId [
 	"Add a given element to my children and make it a named container, so that
 	we could add children in that container"
+	| aChildId |
+	
+	aChildId := aBlElementId asBlocElementId.
 	
 	self
 		assert: [ (self children
-			detect: [ :aChild |
-				aChild userData
-					at: #blocContainer
-					ifPresent: [ :aName | aName = aContainerName ]
-					ifAbsent: [ false ] ]
+			detect: [ :aChild | aChild id = aChildId ]
 			ifFound: [ true ]
 			ifNone: [ false ]) not ]
-		description: [ 'Child named #', aContainerName asString, ' already exists' ].
+		description: [ 'Child with id #', aBlElementId asString, ' already exists' ].
 	
-	anElement userData at: #blocContainer put: aContainerName.
+	anElement id: aChildId.
 	self addChild: anElement
 ]
 
@@ -159,16 +178,33 @@ BlElement >> addChild: anElement at: anIndex as: aContainerName [
 	self
 		assert: [ (self children
 			detect: [ :aChild |
-				aChild userData
-					at: #blocContainer
-					ifPresent: [ :aName | aName = aContainerName ]
-					ifAbsent: [ false ] ]
+				aChild containerName
+					ifNotNil: [ :aName | aName = aContainerName ]
+					ifNil: [ false ] ]
 			ifFound: [ true ]
 			ifNone: [ false ]) not ]
 		description: [ 'Child named #', aContainerName asString, ' already exists' ].
 	
-	anElement userData at: #blocContainer put: aContainerName.
+	anElement containerName: aContainerName.
 	self addChild: anElement at: anIndex
+]
+
+{ #category : #'children add/remove' }
+BlElement >> addChild: anElement before: anotherElement [
+	"Add anElement as my direct child right before anotherElement.
+	Throws an ${class:BlChildDoesNotExistError}$ if anotherElement is not my direct child.
+	anElement must not be a direct child of any other element!
+	anElement must not be nil"
+	| anotherElementIndex |
+
+	anotherElementIndex := self childIndexOf: anotherElement.
+	anotherElementIndex isZero
+		ifTrue: [
+			(BlChildDoesNotExistError new
+				parent: self;
+				child: anotherElement) signal ].
+
+	self addChild: anElement at: anotherElementIndex
 ]
 
 { #category : #'children add/remove' }
@@ -206,7 +242,7 @@ BlElement >> addChildFirst: anElement as: aContainerName [
 	"Add a given element as my first child and make it a named container, so that
 	we could add children in that container"
 
-	anElement userData at: #blocContainer put: aContainerName.
+	anElement containerName: aContainerName.
 	self addChildFirst: anElement
 ]
 
@@ -278,6 +314,12 @@ BlElement >> allChildrenBreadthFirstSelect: aBlock [
 	^ selectedChildren
 ]
 
+{ #category : #'api - children enumeration' }
+BlElement >> allChildrenDepthFirstDo: aBlock [
+	self childrenDo: [ :each | each allChildrenDepthFirstDo: aBlock ].
+	self childrenDo: aBlock
+]
+
 { #category : #'children accessing' }
 BlElement >> allParentsDetect: aBlock ifFound: ifFoundBlock ifNone: ifNoneBlock [
 	self allParentsDo: [ :aParent | 
@@ -296,19 +338,31 @@ BlElement >> allParentsDo: aBlock [
 	self parent withAllParentsDo: aBlock
 ]
 
+{ #category : #'children accessing' }
+BlElement >> allParentsTo: aParentElement do: aBlock [
+	"Evaluate a block with each of my parents as an argument starting from my direct parent
+	up to the given parent element (excluding myself).
+	If I don't have a parent - does nothing"
+	
+	self allParentsDo: [ :eachParent |
+		aBlock value: eachParent.
+		eachParent == aParentElement
+			ifTrue: [ ^ self ] ]
+]
+
 { #category : #'event handling' }
 BlElement >> allowChildrenMouseEvents [
 	"Allow my children to receive mouse events"
 
-	shouldChildrenHandleMouseEvents := true
+	flags addShouldChildrenHandleMouseEvents
 ]
 
 { #category : #'event handling' }
 BlElement >> allowMeAndChildrenMouseEvents [
 	"Allow me and my children to receive mouse events"
 
-	shouldHandleMouseEvents := true.
-	shouldChildrenHandleMouseEvents := true
+	flags addShouldHandleMouseEvents.
+	flags addShouldChildrenHandleMouseEvents
 ]
 
 { #category : #'event handling' }
@@ -316,19 +370,24 @@ BlElement >> allowMouseEvents [
 	"Allow *me* to handle mouse events.
 	It does not influence the ability of the children to handle events, hence I am a local property"
 
-	shouldHandleMouseEvents := true
+	flags addShouldHandleMouseEvents.
 ]
 
 { #category : #layout }
 BlElement >> applyLayoutIn: aBlBounds [
+	
+]
+
+{ #category : #layout }
+BlElement >> applyLayoutIn: aBlBounds context: aBlElementBoundsUpdateContext [
 	self errorHandler
 		with: self
-		do: [ self applyLayoutSafelyIn: aBlBounds ]
-		failed: [ self applyLayoutThatFailedIn: aBlBounds ]
+		do: [ self applyLayoutSafelyIn: aBlBounds context: aBlElementBoundsUpdateContext ]
+		failed: [ self applyLayoutThatFailedIn: aBlBounds context: aBlElementBoundsUpdateContext ]
 ]
 
 { #category : #'private - layout' }
-BlElement >> applyLayoutSafelyIn: aRectangle [
+BlElement >> applyLayoutSafelyIn: aRectangle context: aBlElementBoundsUpdateContext [
 	"Layout me and my children within aRectangle in my local coordinates.
 	Note: aRectangle may be a temporary or mutable rectangle, so you must not
 	store or refer it without making a copy!
@@ -343,70 +402,43 @@ BlElement >> applyLayoutSafelyIn: aRectangle [
 
 	"Fast exit if I or any of my children did not request layout update
 	and if my current bounds are the same as aRectangle"
-	(self isLayoutRequested or: [ extentChanged or: [ newPosition ~= self position ] ])
+	(self isLayoutRequested or: [
+		self layout mayInfluencePosition not
+			or: [ extentChanged or: [ newPosition ~= self position ] ] ])
 		ifFalse: [ ^ self ].
 
 	"! actually change my position and extent !"
-	self position: newPosition extent: newExtent.
+	self position: newPosition extent: newExtent context: aBlElementBoundsUpdateContext.
 
 	"if my extent did not change and if I or any of my children did not request layout we do nothing"
-	(extentChanged or: [ self isLayoutRequested ])
+	(extentChanged or: [ self isLayoutRequested or: [ self layout mayInfluencePosition ] ])
 		ifTrue: [
 			self telemetry
 				timeSync: [ 'Layout ', self class name ]
-				during: [ self onLayout: aRectangle ] ].
+				during: [ self onLayout: aRectangle context: aBlElementBoundsUpdateContext ] ].
 
 	"we are done, mark that there are no layout requests pending"
-	self layout requestingLayout: false
+	self privateRequestingLayout: false
 ]
 
 { #category : #'private - layout' }
-BlElement >> applyLayoutThatFailedIn: aRectangle [
+BlElement >> applyLayoutThatFailedIn: aRectangle context: aBlElementBoundsUpdater [
 	"Perform fallback safe action when layout computation failed"
+	NonInteractiveTranscript stdout nextPutAll: 'Layout failed in ', self class name; cr.
 
-	self position: aRectangle origin extent: aRectangle extent.
+	self position: aRectangle origin extent: aRectangle extent context: aBlElementBoundsUpdater.
 	"we are done, mark that there are no layout requests pending"
-	self layout requestingLayout: false
+	self privateRequestingLayout: false
+]
+
+{ #category : #converting }
+BlElement >> asBlocResolvedElementsFrom: anElement [
+	^ { self }
 ]
 
 { #category : #converting }
 BlElement >> asElement [
 	^ self 
-]
-
-{ #category : #'*Bloc-Utilities - Pannable' }
-BlElement >> asPannableElement [
-	| pannable |
-	self removeFromParent.
-	pannable := BlPannableElement new.
-	pannable contentElement: self.
-	^ pannable
-]
-
-{ #category : #'*Bloc-Utilities - Pannable' }
-BlElement >> asScalableElement [
-	| aScalableElement |
-	
-	self removeFromParent.
-	aScalableElement := BlScalableElement new.
-	aScalableElement constraintsDo: [ :c |
-		c horizontal matchParent.
-		c vertical matchParent ].
-	aScalableElement addChild: self.
-
-	^ aScalableElement
-]
-
-{ #category : #'*Bloc-Utilities - Scrolling' }
-BlElement >> asScrollableElement [
-	| scrollable |
-	self removeFromParent.
-	scrollable := BlScrollableElement new.
-	scrollable constraintsDo: [ :c |
-		c horizontal matchParent.
-		c vertical matchParent ].
-	scrollable addChild: self.
-	^ scrollable
 ]
 
 { #category : #'children add/remove' }
@@ -451,7 +483,33 @@ BlElement >> attachChild: anElement at: anIndex [
 
 { #category : #'api - space' }
 BlElement >> attachSpace [
-	spaceReference := BlAttachedSpaceReference uniqueInstance
+	spaceReference := BlAttachedSpaceReference uniqueInstance.
+	
+	"It is possible that an element requested focus while being temporarily
+	detached from the space. We have to requestFocus again, otherwise the focus
+	request will never reach the space.
+	(https://github.com/feenkcom/gtoolkit/issues/1457)"
+	self isFocused
+		ifTrue: [ self requestFocus: self ]
+		ifFalse: [
+			self space focusOwner == self
+				ifTrue: [ self loseFocus: self ] ].
+
+	self taskQueue isEmpty
+		ifFalse: [ self space enqueueTasksFrom: self taskQueue ].
+
+	"It is possible that an element requested itself to repaint while
+	being temporarily detached from the space. If we do not resume
+	propagation of the repainting request, elements wanting a composition layer
+	will not be repainted (https://github.com/feenkcom/gtoolkit/issues/1459)"
+	self needsPaint
+		ifTrue: [ self markNeedsPaintFrom: self ].
+
+	self needsStyle
+		ifTrue: [ self requestStyle ].
+
+	self needsPropertiesComputation
+		ifTrue: [ self requestPropertiesComputation ]
 ]
 
 { #category : #'api - look' }
@@ -601,42 +659,9 @@ BlElement >> boundsInWindow [
 		ifFalse: [ boundsCache boundsInSpace ]
 ]
 
-{ #category : #'geometry transform' }
-BlElement >> centerRotateByDegrees: anAngle [ 
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		rotateBy: anAngle axis: BlVector zAxis;
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> centerRotateByRadians: anAngle [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		rotateBy: anAngle radiansToDegrees axis: BlVector zAxis;
-		apply
-]
-
 { #category : #updating }
 BlElement >> changed [
 	self error: 'Never use me, instead invalidate only what is needed'
-]
-
-{ #category : #'private - accessing' }
-BlElement >> changes [
-	<return: #BlElementChanges>
-	
-	^ changes
 ]
 
 { #category : #'children accessing' }
@@ -679,11 +704,33 @@ BlElement >> childNamed: aContainerName ifFound: ifFoundBlock [
 BlElement >> childNamed: aContainerName ifFound: ifFoundBlock ifNone: ifNoneBlock [
 	<return: #Object>
 
+	^ self
+		childWithId: aContainerName
+		ifFound: ifFoundBlock
+		ifNone: ifNoneBlock
+]
+
+{ #category : #'children accessing' }
+BlElement >> childWithId: aBlElementId [
+	<return: #BlElement>
+
+	self
+		childWithId: aBlElementId
+		ifFound: [ :anElement | ^ anElement ]
+		ifNone: [ self error: 'Children with id ', aBlElementId asString, ' does not exist' ]
+]
+
+{ #category : #'children accessing' }
+BlElement >> childWithId: aBlElementId ifFound: ifFoundBlock ifNone: ifNoneBlock [
+	<return: #Object>
+	| targetId |
+	
+	targetId := aBlElementId asBlocElementId.
+
 	self allChildrenBreadthFirstDo: [ :aChild |
-		aChild userData
-			at: #blocContainer
-			ifPresent: [ :aName | (aName = aContainerName)
-				ifTrue: [ ^ ifFoundBlock cull: aChild ] ] ].
+		aChild id = targetId
+			ifTrue: [ ^ ifFoundBlock cull: aChild ] ].
+
 	^ ifNoneBlock value
 ]
 
@@ -694,6 +741,46 @@ BlElement >> children [
 	<return: #BlChildrenCollection>
 
 	^ children
+]
+
+{ #category : #'api - children enumeration' }
+BlElement >> childrenAt: aPoint do: aBlock [
+	"Evaluate a given Block with my directs children under a given point provided
+	in *my* local coordinates sorted in the order they are displayed (children reversed + elevation based).
+	Return true if aBlock was evaluated, false otherwise"
+	<return: #Boolean>
+	| isPointInsideMe anyChildFound |
+
+	isPointInsideMe := self containsPoint: aPoint.
+	
+	"if point is not inside of me and I clip children, it literally
+	means that there neither me nor my children are visible at a given point"
+	(isPointInsideMe not and: [ self clipChildren ])
+		ifTrue: [ ^ false ].
+
+	anyChildFound := false.
+	
+	self children sortedByElevation reversed do: [ :eachChildElement |
+		| aPointInChildCoordinates |
+		aPointInChildCoordinates := eachChildElement parentPointToLocal: aPoint.
+
+		(eachChildElement containsPoint: aPointInChildCoordinates)
+			ifTrue: [
+				aBlock value: eachChildElement.
+				anyChildFound := true ] ].
+
+	^ anyChildFound
+]
+
+{ #category : #'geometry bounds convertion' }
+BlElement >> childrenBoundsToLocal: aBounds [
+	"In-place transform bounds from my childrens' coordinates to my local coordinates.
+	Note, that I do not return a new rectangle and instead mutate provided one,
+	so do not forget to send #asRectangle to given mutable rectangle in order to get
+	immutable one that can be safely stored as instance variable."
+	<return: #BlBounds>
+	
+	^ aBounds
 ]
 
 { #category : #'children accessing' }
@@ -714,6 +801,14 @@ BlElement >> childrenDo: aBlockOrSymbol [
 	self children do: aBlockOrSymbol
 ]
 
+{ #category : #'geometry position convertion' }
+BlElement >> childrenPointToLocal: aPoint [
+	"Transform a given point from the local coordinates of my children to my local coordinates"
+	<return: #Point>
+
+	^ aPoint
+]
+
 { #category : #'api - look' }
 BlElement >> clipChildren [
 	<return: #Boolean>
@@ -727,19 +822,6 @@ BlElement >> clipChildren: aBoolean [
 		ifTrue: [ ^ self ].
 
 	visuals := visuals clipChildren: aBoolean
-]
-
-{ #category : #'change reporting' }
-BlElement >> commitChanges [
-	"Commit all accumulated element changes since previous commit"
-
-	self telemetry
-		timeSync: [ 'Commit me ', self class name ]
-		during: [ self changes commitOn: self ].
-
-	self telemetry
-		timeSync: [ 'Commit children ', self class name ]
-		during: [ self childrenDo: [ :anElement | anElement commitChanges ] ]
 ]
 
 { #category : #accessing }
@@ -771,7 +853,7 @@ BlElement >> compositionLayer: aCompositionLayer [
 { #category : #'private - layout' }
 BlElement >> computeLayout [
 	"Private! Never use me outside of #forceLayout"
-	| relayoutCounter maxRelayoutCount |
+	| relayoutCounter maxRelayoutCount aBlElementBoundsUpdateContext |
 
 	relayoutCounter := 0.
 	maxRelayoutCount := 100.
@@ -779,6 +861,12 @@ BlElement >> computeLayout [
 		and: [ relayoutCounter < maxRelayoutCount ] ]
 		whileTrue: [
 			| widthSpec heightSpec maxExtent |
+			
+			BlSpace doStyle: self.
+			BlSpace new
+				doComputeProperties: self
+				withParentProperties: BlElementPropagatableProperties new
+				withGlobalProperties: BlElementPropagatableProperties new.
 			
 			maxExtent := self isAttachedToSceneGraph
 				ifTrue: [ self space extent ]
@@ -798,11 +886,14 @@ BlElement >> computeLayout [
 					resizer: self constraints vertical resizer)).
 			
 			"...then we layout in measured on previous step bounds"
-			self applyLayoutIn: self measuredBounds asRectangle.
+			aBlElementBoundsUpdateContext := BlElementBoundsUpdater new.
+			self applyLayoutIn: self measuredBounds asRectangle context: aBlElementBoundsUpdateContext.
+			aBlElementBoundsUpdateContext commitChanges.
 			
-			self commitChanges.
-			
-			relayoutCounter := relayoutCounter + 1 ]
+			relayoutCounter := relayoutCounter + 1 ].
+		
+	relayoutCounter isZero
+		ifFalse: [ self dispatchLayoutDone ]
 ]
 
 { #category : #'private - accessing' }
@@ -841,6 +932,20 @@ BlElement >> constraintsDo: aBlock [
 	
 	aBlock value: self constraints.
 	self requestLayout
+]
+
+{ #category : #accessing }
+BlElement >> containerName [
+	<return: #Symbol or: nil>
+
+	^ self id asSymbol
+]
+
+{ #category : #accessing }
+BlElement >> containerName: aSymbol [
+	"Give this element a container name (a Symbol) which can be used to find an element by its name"
+
+	self id: aSymbol
 ]
 
 { #category : #'geometry testing' }
@@ -944,7 +1049,7 @@ BlElement >> defaultGeometry [
 
 { #category : #initialization }
 BlElement >> defaultLayout [
-	^ BlBasicLayout new
+	^ BlBasicLayout uniqueInstance
 ]
 
 { #category : #initialization }
@@ -957,7 +1062,7 @@ BlElement >> defaultTransformation [
 	"Return an instance of BlTransformation that plays a role of my default transformation"
 	<return: #BlElementTransformation>
 
-	^ BlElementLocalTransformation new
+	^ BlElementIdentityTransformation uniqueInstance
 ]
 
 { #category : #initialization }
@@ -980,7 +1085,7 @@ BlElement >> detachChild: anElement [
 	"Detaches anElement from myself. Detaching an element should be followed either by attachChild: or removeDetachedChild:
 	Detachment should only be temporary; reattachment or removal should happen within the same drawing cycle as detachment.
 	When an element is detached, its parent is nil and cannot be retrieved using `children at:`
-	I must not be used within removeChild: because I have completely different intent; I meant to be temporary, while
+	I must not be used within removeChild: because I have completely different intent; I am meant to be temporary, while
 	removeChild: is permanent.
 	I don't clean focus in order to be able to preserve it in case child is attached back.
 	anElement must not be nil.
@@ -1032,16 +1137,24 @@ BlElement >> detachSpace [
 	spaceReference := BlDetachedSpaceReference uniqueInstance
 ]
 
+{ #category : #'children accessing' }
+BlElement >> directChildNamed: aContainerName ifFound: ifFoundBlock ifNone: ifNoneBlock [
+	<return: #Object>
+
+	self childrenDo: [ :aChild |
+		aChild containerName ifNotNil: [ :aName |
+			(aName = aContainerName)
+				ifTrue: [ ^ ifFoundBlock cull: aChild ] ] ].
+	^ ifNoneBlock value
+]
+
 { #category : #'children dispatching' }
 BlElement >> dispatchAddedToParent [
 	"Sent after I was added to another element as direct child.
 	I dispatch or fire all necessary events, clean internal caches and send a corresponding hooks"
 
 	self onAddedToParent.
-	self eventDispatcher dispatchAddedToParent.
-	self telemetry
-		timeSync: [ 'Dispatch added to super-parent {1}' format: { self } ]
-		during: [ self dispatchAddedToSuperParent: self ]
+	self eventDispatcher dispatchAddedToParent
 ]
 
 { #category : #'children dispatching' }
@@ -1060,22 +1173,6 @@ BlElement >> dispatchAddedToSceneGraph [
 			ifFalse: [ anElement attachSpace ].
 		
 		anElement dispatchAddedToSceneGraph ]
-]
-
-{ #category : #'children dispatching' }
-BlElement >> dispatchAddedToSuperParent: anElement [
-	"Sent after I or one of my parents was added to another element as a child.
-	I dispatch or fire all necessary events, clean internal caches and send a corresponding hooks"
-
-	self onAddedToSuperParent: anElement.
-
-	self telemetry
-		timeSync: [ 'Notify added to super-parent {1}' format: { anElement } ]
-		during: [ self eventDispatcher dispatchAddedToSuperParent: anElement ].
-
-	self telemetry
-		timeSync: [ 'Dispatch to children added to super-parent {1}' format: { anElement } ]
-		during: [ self childrenDo: [ :aChildElement | aChildElement dispatchAddedToSuperParent: anElement ] ]
 ]
 
 { #category : #'children dispatching' }
@@ -1110,7 +1207,7 @@ BlElement >> dispatchChildRemoved: anElement [
 	"Let child dispatch necessary events and hooks"
 	anElement dispatchRemovedFromParent: self.
 	
-	"If an only if I am attached to scene graph or I am detached from the scene graph
+	"If and only if I am attached to scene graph or I am detached from the scene graph
 	we let child know that it is not a part of the scene graph anymore.
 	
 	We need to also handle the detached case here, as when detaching the 
@@ -1165,7 +1262,7 @@ BlElement >> distanceTo: aPoint [
 
 { #category : #'geometry bounds' }
 BlElement >> distanceToX: aPoint [
-	"Compute the horizontal distance from my closest edge to a provided x coorinate of a point both given in my parent coordinates"
+	"Compute the horizontal distance from my closest edge to a provided x coordinate of a point both given in my parent coordinates"
 	<return: #Number>
 	| aClampedCoordinate theBoundsInParent |
 	
@@ -1177,7 +1274,7 @@ BlElement >> distanceToX: aPoint [
 
 { #category : #'geometry bounds' }
 BlElement >> distanceToY: aPoint [
-	"Compute the vertical distance from my closest edge to a provided y coorinate of a point both given in my parent coordinates"
+	"Compute the vertical distance from my closest edge to a provided y coordinate of a point both given in my parent coordinates"
 	<return: #Number>
 	| aClampedCoordinate theBoundsInParent |
 	
@@ -1226,7 +1323,12 @@ BlElement >> elevation [
 
 { #category : #'api - look' }
 BlElement >> elevation: aBlElevation [
-	visuals := visuals elevation: aBlElevation
+	visuals := visuals elevation: aBlElevation.
+
+	"when elevation changes, it is enough to just notify our parent, since
+	my rendering state does not change, only the order in which parent paints its children"
+	self hasParent
+		ifTrue: [ self parent invalidate ]
 ]
 
 { #category : #'api - tasks' }
@@ -1282,9 +1384,13 @@ BlElement >> extent: aPoint [
 BlElement >> findMouseEventTargetAt: aPoint [
 	"Return the deepest child element among all my children or myself that may be a target for mouse event at provided location.
 	The coordinate point is given in space coordinates.
-	I may return nil if no such child found and if I can not be event target either"
+	I may return nil if no such child is found and if I can not be event target either"
 	<return: #BlElement or: nil>
 	| doWantEvent |
+	
+	"fast exit if I am not visible, since it implies that 
+	neither I receive mouse events nor my (clipped or unclipped) children"
+	self isVisible ifFalse: [ ^ nil ].
 	
 	doWantEvent := self wantsMouseEventAt: aPoint.
 
@@ -1353,14 +1459,14 @@ BlElement >> focusables: anOrderedCollection along: aBlFocusSearchDirection [
 		of: self
 ]
 
-{ #category : #accessing }
+{ #category : #'private - accessing' }
 BlElement >> focused [
 	<return: #Boolean>
 
 	^ visuals focused
 ]
 
-{ #category : #accessing }
+{ #category : #'private - accessing' }
 BlElement >> focused: aBoolean [
 	visuals := visuals focused: aBoolean
 ]
@@ -1400,9 +1506,7 @@ BlElement >> forceLayout [
 	Note: because layout measurement may depend on other element it is mandatory to compute
 	layout going down from the top most parent, otherwise layout will not be valid"
 
-	self topMostParent == self
-		ifTrue: [ self computeLayout ]
-		ifFalse: [ self topMostParent computeLayout ]
+	self topMostParent computeLayout
 ]
 
 { #category : #'api - look' }
@@ -1521,6 +1625,14 @@ BlElement >> globalBoundsToMine: aBlBounds fromParent: aParentElement [
 ]
 
 { #category : #'geometry position convertion' }
+BlElement >> globalPointToChildren: aPoint [
+	"Transform a given point from the coordinates of my top most parent to my children coordinates"
+	<return: #Point>
+
+	^ self localPointToChildren: (self globalPointToLocal: aPoint)
+]
+
+{ #category : #'geometry position convertion' }
 BlElement >> globalPointToLocal: aPoint [
 	"Transform a given point from the coordinates of my root most parent to my local coordinates"
 	<return: #Point>
@@ -1543,6 +1655,19 @@ BlElement >> globalPointToParent: aPoint [
 		ifFalse: [ aPoint ]
 ]
 
+{ #category : #'geometry position convertion' }
+BlElement >> globalPointToParentChildren: aPoint [
+	"Transform a given point from the coordinates of my top most parent to my parent's children coordinates"
+	<return: #Point>
+	| pt |
+	
+	pt := self globalPointToParent: aPoint.
+	self hasParent
+		ifTrue: [ pt := self parent localPointToChildren: pt ].
+
+	^ pt
+]
+
 { #category : #'geometry transform' }
 BlElement >> globalScale [
 	"Return a scale factor from "
@@ -1560,10 +1685,7 @@ BlElement >> globalScale [
 
 { #category : #printing }
 BlElement >> gtDisplayOn: aStream [
-	self userData
-		at: #blocElementLabel
-		ifPresent: [ :aString | aStream nextPutAll: aString ]
-		ifAbsent: [ self printOn: aStream ]
+	self printOn: aStream
 ]
 
 { #category : #'children testing' }
@@ -1584,7 +1706,7 @@ BlElement >> hasChildren [
 
 { #category : #'focus testing' }
 BlElement >> hasFocus [
-	"Return true if I have or contain a focused element, false otherwise"
+	"Return true if an element is focused or contains a focused element, false otherwise"
 	<return: #Boolean>
 
 	^ self isFocused or: [
@@ -1660,6 +1782,37 @@ BlElement >> height: aNumber [
 		c vertical exact: aNumber ]
 ]
 
+{ #category : #accessing }
+BlElement >> id [
+	"Return an id of this element if it was defined"
+	<return: #BlElementId>
+	
+	^ self userData
+		at: #elementId
+		ifAbsent: [ BlElementId noId ]
+]
+
+{ #category : #accessing }
+BlElement >> id: aBlElementId [
+	"Give this element an id which can be used to query this element"
+	
+	self userData
+		at: #elementId
+		put: aBlElementId asBlocElementId
+]
+
+{ #category : #layout }
+BlElement >> ignoreRequestLayoutDuring: aBlock [
+	| wasIgnored |
+
+	wasIgnored := flags hasShouldIgnoreLayoutRequests.
+	flags addShouldIgnoreLayoutRequests.
+	aBlock ensure: [
+		wasIgnored
+			ifTrue: [ flags addShouldIgnoreLayoutRequests ]
+			ifFalse: [ flags clearShouldIgnoreLayoutRequests ] ]
+]
+
 { #category : #processing }
 BlElement >> inUIProcessDo: aBlock [ 
 	"Run the supplied block in the UI process.
@@ -1683,27 +1836,26 @@ BlElement >> initialize [
 	boundsCache := BlBoundsCache on: self.
 	bounds := BlElementLocalBounds new referenceElement: self.
 	measuredBounds := BlElementLocalBounds new referenceElement: self.
-	changes := BlElementChanges new.
 
 	eventDispatcher := BlElementEventDispatcher on: self.
 	constraints := BlLayoutCommonConstraints new.
 	self resetChildrenArray.
 
-	transformation := self defaultTransformation owner: self.
+	transformation := self defaultTransformation asCachedTransformation.
 
 	layout := self defaultLayout.
 
-	shouldHandleMouseEvents := true.
-	shouldChildrenHandleMouseEvents := true.
+	flags := BlElementFlags new.
+	flags addShouldHandleMouseEvents.
+	flags addShouldChildrenHandleMouseEvents.
+	flags addNeedsLayout.
+	flags addWaitingLayout.
 
 	"initialized lazily"
 	userData := nil.
 
 	taskQueue := BlTaskQueue new.
-	errorHandler := self defaultErrorHandler.
-	
-	"set to true once layout is done"
-	needsPaint := false
+	errorHandler := self defaultErrorHandler
 ]
 
 { #category : #'geometry bounds' }
@@ -1747,24 +1899,6 @@ BlElement >> invalidate [
 	is also invalidated on every #invalidate message sent, so use me wisely."
 
 	self markNeedsPaintFrom: self
-]
-
-{ #category : #'change reporting' }
-BlElement >> invalidateAfterFrom: aPreviousPosition to: aNewPosition [
-	"Invalidate due to relocation by a given offset"
-
-	self wantsSeparateCompositingLayer
-		ifTrue: [ self hasCompositionLayer
-				ifTrue: [
-					| aLayer |
-					aLayer := self compositionLayer.
-					aLayer offset: aLayer offset + aNewPosition - aPreviousPosition.
-					self isAttachedToSceneGraph
-						ifTrue: [ self space markNeedsCompositionPaint: self from: self ]  ]
-				ifFalse: [ self hasParent
-						ifTrue: [ self parent invalidate ] ] ]
-		ifFalse: [ self hasParent
-				ifTrue: [ self parent invalidate ] ]
 ]
 
 { #category : #'change reporting' }
@@ -1842,10 +1976,22 @@ BlElement >> isFocusable [
 
 { #category : #'focus testing' }
 BlElement >> isFocused [
-	"Returns true if I have focus, false otherwise"
+	"Returns true if I am focused, false otherwise.
+	Note: It is possible that an element has focus but is not focused by itself"
 	<return: #Boolean>
 
 	^ self focused
+]
+
+{ #category : #layout }
+BlElement >> isLayoutBoundary [
+	"Return true if I am a layout boundary, e.g. the layout recomputation requests should not be propagated up in the hierarchy.
+	Imagine an element matches parent in both directions or has a fixed size, in this case even if my children request layout update
+	I do not have to propagate it further because it will not have any influence on the parent"
+	<return: #Boolean>
+	
+	^ (self constraints horizontal resizer isExact or: [ self constraints horizontal resizer isMatchParent ])
+		and: [ self constraints vertical resizer isExact or: [ self constraints vertical resizer isMatchParent ] ]
 ]
 
 { #category : #layout }
@@ -1854,17 +2000,7 @@ BlElement >> isLayoutRequested [
 	Return true if the layout will be forced during next layout pass, false otherwise"
 	<return: #Boolean>
 
-	^ self layout requestingLayout
-]
-
-{ #category : #layout }
-BlElement >> isManaged [
-	self 
-		deprecated: 'Use "constraints ignoredByLayout not" instead'
-		on: 	'17 March 2018' 
-		in: 'Pharo-6.0-60539-'.
-		
-	^ self constraints ignoredByLayout not
+	^ flags hasNeedsLayout
 ]
 
 { #category : #testing }
@@ -1911,7 +2047,7 @@ BlElement >> isTransparent [
 BlElement >> isVisible [
 	"Return true if I should be visible, false otherwise.
 	Note, that I am not the same as isTransparent/isOpaque, those
-	just influence rendering and not behaviour or interraction.
+	just influence rendering and not behaviour or interaction.
 	If element is invisible it does not receive events such as mouse clicks"
 	<return: #Boolean>
 
@@ -1932,7 +2068,7 @@ BlElement >> isVisibleInSpace [
 
 { #category : #accessing }
 BlElement >> labeled: aString [
-	self userData at: #blocElementLabel put: aString asString
+	self containerName: aString asSymbol
 ]
 
 { #category : #'api - layout' }
@@ -1949,6 +2085,9 @@ BlElement >> layout: aBlLayout [
 	aBlLayout must not be nil"
 	<argument: #aBlLayout satisfies: #notNil>
 	<event: #BlElementLayoutChangedEvent>
+
+	layout = aBlLayout
+		ifTrue: [ ^ self ].
 
 	layout := aBlLayout.
 
@@ -1967,6 +2106,17 @@ BlElement >> layoutDo: aBlock [
 
 	aBlock value: self layout.
 	self requestLayout
+]
+
+{ #category : #'geometry bounds convertion' }
+BlElement >> localBoundsToChildren: aBounds [
+	"In-place transform bounds from my local coordinates to my childrens' coordinates.
+	Note, that I do not return a new rectangle and instead mutate provided one,
+	so do not forget to send #asRectangle to given mutable rectangle in order to get
+	immutable one that can be safely stored as instance variable."
+	<return: #BlBounds>
+	
+	^ aBounds
 ]
 
 { #category : #'geometry bounds convertion' }
@@ -2028,11 +2178,14 @@ BlElement >> localBoundsToParent: aBounds [
 	<return: #BlBounds>
 
 	"first apply transformation if we have one"
-	transformation transformBounds: aBounds.
+	self transformation transformBounds: aBounds.
 
 	"then translate according to my position within the parent.
 	Note, that an element might have a position even if it does not have a parent"
 	aBounds translateBy: self position.
+	
+	self hasParent
+		ifTrue: [ self parent childrenBoundsToLocal: aBounds ].
 	
 	^ aBounds
 ]
@@ -2060,12 +2213,21 @@ BlElement >> localBoundsToWindow: aBounds [
 ]
 
 { #category : #'geometry position convertion' }
+BlElement >> localPointToChildren: aPoint [
+	"Transform a given point from my local coordinates to the local coordinates of my children."
+	<return: #Point>
+
+	^ aPoint
+]
+
+{ #category : #'geometry position convertion' }
 BlElement >> localPointToGlobal: aPoint [
 	"Transform a given point from my local coordinates to the coordinates of the root most parent"
 	<return: #Point>
 	| pt |
 
 	pt := self localPointToParent: aPoint.
+
 	^ self hasParent
 		ifTrue: [ self parent localPointToGlobal: pt ]
 		ifFalse: [ pt ]
@@ -2073,7 +2235,7 @@ BlElement >> localPointToGlobal: aPoint [
 
 { #category : #'geometry position convertion' }
 BlElement >> localPointToParent: aPoint [
-	"Transforma a given point from my local coordinates to local coordinates of my parent.
+	"Transform a given point from my local coordinates to local coordinates of my parent.
 	Since this transfortmation does not actually involve my parent, it can be performed
 	regardless of if I have one"
 	<return: #Point>
@@ -2082,19 +2244,54 @@ BlElement >> localPointToParent: aPoint [
 	effecting local nature of a coordinate"
 	pt := self transformation transformPoint: aPoint.
 	"next we should translate it to be within my parent's local coordinates"
-	^ pt translateBy: self position
+	pt := pt translateBy: self position.
+	
+	self hasParent
+		ifTrue: [ pt := self parent childrenPointToLocal: pt ].
+		
+	^ pt
 ]
 
 { #category : #'focus requesting' }
 BlElement >> looseFocus [
-	self isAttachedToSceneGraph
-		ifTrue: [ self looseFocus: self ]
-		ifFalse: [ self focused: false ]
+	self
+		deprecated: 'Use #loseFocus instead.'
+		transformWith: '`@receiver looseFocus' -> '`@receiver loseFocus'.
+
+	self loseFocus
 ]
 
 { #category : #'focus requesting' }
 BlElement >> looseFocus: aChildElement [
-	"Propagate focus loose up in the scene graph with an original
+	self
+		deprecated: 'Please use loseFocus: instead.'
+		transformWith:
+			'`@receiver looseFocus: `@statements1'
+				-> '`@receiver loseFocus: `@statements1'.
+
+	self loseFocus: aChildElement
+]
+
+{ #category : #'focus requesting' }
+BlElement >> loseFocus [
+	| anElementToLooseFocus |
+
+	anElementToLooseFocus := self isFocused
+		ifTrue: [ self ]
+		ifFalse: [ self deepestFocusedChild
+			ifNil: [ self ] ].
+
+	anElementToLooseFocus isFocused
+		ifFalse: [ ^ self ].
+
+	anElementToLooseFocus isAttachedToSceneGraph
+		ifTrue: [ anElementToLooseFocus loseFocus: anElementToLooseFocus ]
+		ifFalse: [ anElementToLooseFocus focused: false ]
+]
+
+{ #category : #'focus requesting' }
+BlElement >> loseFocus: aChildElement [
+	"Propagate focus loss up in the scene graph with an original
 	element that looses focus"
 
 	self
@@ -2102,32 +2299,8 @@ BlElement >> looseFocus: aChildElement [
 		description: [ 'I must be attached to the scene graph' ].
 		
 	(self hasParent and: [ self parent isAttachedToSceneGraph ])
-		ifTrue: [ self parent looseFocus: aChildElement ]
-		ifFalse: [ self space looseFocusFor: aChildElement ]
-]
-
-{ #category : #accessing }
-BlElement >> managed [
-	self 
-		deprecated: 'Use "constraints ignoredByLayout not" instead'
-		on: 	'17 March 2018' 
-		in: 'Pharo-6.0-60539-'.
-	
-	^ self isManaged
-]
-
-{ #category : #accessing }
-BlElement >> managed: aBoolean [
-	"If false is provided, then the element is not subject to the parent's layout"
-	self 
-		deprecated: 'Use "constraintsDo: [ :c | c ignoreByLayout ]" instead'
-		on: 	'17 March 2018' 
-		in: 'Pharo-6.0-60539-'.
-
-	self constraintsDo: [ :c |
-		aBoolean
-			ifTrue: [ c accountByLayout ]
-			ifFalse: [ c ignoreByLayout ] ]
+		ifTrue: [ self parent loseFocus: aChildElement ]
+		ifFalse: [ self space loseFocusFor: aChildElement ]
 ]
 
 { #category : #'api - layout' }
@@ -2143,14 +2316,21 @@ BlElement >> margin [
 BlElement >> margin: aBlInsets [
 	<argument: #aBlInsets satisfies: #notNil>
 
+	self margin = aBlInsets
+		ifTrue: [ ^ self ].
 	self constraintsDo: [ :c | c margin: aBlInsets ]
+]
+
+{ #category : #'api - painting' }
+BlElement >> markDoesNotNeedPaint [
+	flags clearNeedsPaint
 ]
 
 { #category : #'api - painting' }
 BlElement >> markNeedsPaintFrom: anElement [
 	"Make me as dirty and request renderer to re-paint me.
 	anElement is the element from which the re-painting request originates"
-	needsPaint := true.
+	flags addNeedsPaint.
 	
 	self wantsSeparateCompositingLayer
 		ifTrue: [
@@ -2170,74 +2350,16 @@ BlElement >> markNeedsPaintFrom: anElement [
 						ifTrue: [ self space markNeedsPaint: self from: anElement ] ] ]
 ]
 
-{ #category : #'layout constraints' }
-BlElement >> maxExtent [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	^ self maxWidth @ self maxHeight
-]
-
-{ #category : #'layout constraints' }
-BlElement >> maxExtent: aPoint [
-	self 
-		deprecated: 'Use #constraintsDo: instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	self  maxWidth: aPoint x.
-	self  maxHeight: aPoint y
-]
-
-{ #category : #'layout constraints' }
-BlElement >> maxHeight [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	^ self constraints maxHeight
-]
-
-{ #category : #'layout constraints' }
-BlElement >> maxHeight: aNumber [
-	self 
-		deprecated: 'Use #constraintsDo: instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	self constraints maxHeight: aNumber
-]
-
-{ #category : #'layout constraints' }
-BlElement >> maxWidth [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	^ self constraints maxWidth
-]
-
-{ #category : #'layout constraints' }
-BlElement >> maxWidth: aNumber [
-	
-	self 
-		deprecated: 'Use #constraintsDo: instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self constraints maxWidth: aNumber
-]
-
 { #category : #layout }
 BlElement >> measure: anExtentMeasurementSpec [
+	<return: #Point>
+
 	self errorHandler
 		with: self
 		do: [ self measureSafely: anExtentMeasurementSpec ]
-		failed: [ self measureThatFailed: anExtentMeasurementSpec ]
+		failed: [ self measureThatFailed: anExtentMeasurementSpec ].
+
+	^ self measuredExtent
 ]
 
 { #category : #'private - layout' }
@@ -2251,7 +2373,7 @@ BlElement >> measureSafely: anExtentMeasurementSpec [
 	"Fast exit if I or any of my children did not request layout update
 	and my previous measurement specification equals to new one"
 	(self isLayoutRequested not
-		and: [ self layout previousMeasurementSpec = anExtentMeasurementSpec ])
+		and: [ self privatePreviousMeasurementSpec = anExtentMeasurementSpec ])
 		ifTrue: [ ^ self ].
 
 	"we have to eat layout request first marking it as false in order
@@ -2259,10 +2381,10 @@ BlElement >> measureSafely: anExtentMeasurementSpec [
 	It works as follows: if during measurement or layout an element
 	requests a layout (because of event for example) #waitingLayout
 	is put back to true and we will do another layout pass as result"
-	self layout waitingLayout: false.
+	flags clearWaitingLayout.
 
 	"Store extent specification to be used for checking next time measure: is sent"
-	self layout previousMeasurementSpec: anExtentMeasurementSpec.
+	self privatePreviousMeasurementSpec: anExtentMeasurementSpec.
 
 	"Perform measuring algorithm"
 	self telemetry
@@ -2273,9 +2395,8 @@ BlElement >> measureSafely: anExtentMeasurementSpec [
 { #category : #'private - layout' }
 BlElement >> measureThatFailed: anExtentMeasurementSpec [
 	
-	self layout
-		waitingLayout: false;
-		previousMeasurementSpec: anExtentMeasurementSpec
+	flags clearWaitingLayout.
+	self privatePreviousMeasurementSpec: anExtentMeasurementSpec
 ]
 
 { #category : #layout }
@@ -2339,67 +2460,6 @@ BlElement >> measuredWidth [
 	^ self measuredBounds width
 ]
 
-{ #category : #'layout constraints' }
-BlElement >> minExtent [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	^ self minWidth @ self minHeight
-]
-
-{ #category : #'layout constraints' }
-BlElement >> minExtent: aPoint [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	self  minWidth: aPoint x.
-	self  minHeight: aPoint y
-]
-
-{ #category : #'layout constraints' }
-BlElement >> minHeight [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	^ self constraints minHeight
-]
-
-{ #category : #'layout constraints' }
-BlElement >> minHeight: aNumber [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	 self constraints minHeight:  aNumber
-]
-
-{ #category : #'layout constraints' }
-BlElement >> minWidth [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	^  self constraints minWidth
-]
-
-{ #category : #'layout constraints' }
-BlElement >> minWidth: aNumber [
-	self 
-		deprecated: 'Use #constraints instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-		
-	self constraints minWidth: aNumber
-]
-
 { #category : #accessing }
 BlElement >> mouseCursor [
 	^ visuals mouseCursor 
@@ -2412,10 +2472,22 @@ BlElement >> mouseCursor: aCursor [
 
 { #category : #'api - painting' }
 BlElement >> needsPaint [
-	"Return true if I am marked as dirty and am wating to be re-painted"
+	"Return true if I am marked as dirty and am waiting to be re-painted"
 	<return: #Boolean>
 
-	^ needsPaint
+	^ flags hasNeedsPaint
+]
+
+{ #category : #'api - properties' }
+BlElement >> needsPropertiesComputation [
+	<return: #Boolean>
+
+	^ self properties needsPropertiesComputation
+]
+
+{ #category : #'api - style' }
+BlElement >> needsStyle [
+	^ self styles needsStyle
 ]
 
 { #category : #'event management accessing' }
@@ -2496,18 +2568,7 @@ BlElement >> onAddedToSceneGraph [
 		assert: [ self isAttachedToSceneGraph ]
 		description: [ 'I must already be attached to the scene graph' ].
 
-	self isFocused
-		ifTrue: [ self requestFocus ].
-
-	self space enqueueTasksFrom: self taskQueue.
 	self eventDispatcher dispatchAddedToSceneGraph
-]
-
-{ #category : #'hooks - children' }
-BlElement >> onAddedToSuperParent: aParentElement [
-	"I am sent after I or any of my parents is added to other element as a child.
-	You can access my parent by sending #parent to myself.
-	Note: Always send onAddedToSuperParent: to super class if you override me!"
 ]
 
 { #category : #'hooks - children' }
@@ -2520,6 +2581,22 @@ BlElement >> onChildAdded: anElement [
 BlElement >> onChildRemoved: anElement [
 	"I am sent after anElement was ramoved from me and is no longer my direct child.
 	Note: Always send onChildRemoved: to super class if you override me!"
+]
+
+{ #category : #'children dispatching' }
+BlElement >> onChildToBeRemoved: anElement [
+	"Is sent right before a given child element is about to be removed"
+	
+	"at this point we should make sure that the focus is transfered to me (its parent) if the removed
+	child (or one of its children) had focus"
+	(self isAttachedToSceneGraph and: [ self space hasFocus: anElement ])
+		ifTrue: [
+			| aPreviousFocusOwner |
+			aPreviousFocusOwner := self space focusOwner.
+			self requestFocusDueTo: BlFocusDueToRemovedFromParentReason uniqueInstance.
+			"we should make sure that the removed element that previously had focus keeps the focused flag
+			in order to get focus back next time it is added to the scene"
+			aPreviousFocusOwner focused: true ].
 ]
 
 { #category : #'hooks - geometry' }
@@ -2535,21 +2612,21 @@ BlElement >> onExtentChanged [
 	"clear path cache after updating geometry path"
 	self geometry releaseCache.
 	
-	self transformation invalidateMatrix.
+	self updateTransformationBounds.
 
 	self invalidate.
 	self notifyExtentChanged
 ]
 
 { #category : #layout }
-BlElement >> onLayout: aBounds [
+BlElement >> onLayout: aBounds context: aBlElementBoundsUpdateContext [
 	"I am sent then and only then when my extent changed as the result of a layout"
 	"By default let layout strategy do the layouting job.
 	If needed override this method to do some additional actions.
 	@see BlLayoutStrategy>>#layout: self in: aBounds - override if
 	custom layout strategy is needed"
 
-	self layout layout: self in: aBounds
+	self layout layout: self in: aBounds context: aBlElementBoundsUpdateContext
 ]
 
 { #category : #'hooks - layout' }
@@ -2571,7 +2648,7 @@ BlElement >> onMeasure: anExtentMeasurementSpec [
 { #category : #'hooks - geometry' }
 BlElement >> onPositionChanged [
 	"Is sent when my position changed within a parent"
-	
+
 	self notifyPositionChanged
 ]
 
@@ -2610,10 +2687,20 @@ BlElement >> onRemovedFromSceneGraph [
 	self layout onCleanUp: self
 ]
 
+{ #category : #'hooks - session' }
+BlElement >> onSessionChanged: aNewSession [
+	"Is sent when a Session is changed, for example if the program is closed and re-opened.
+	When this happens the external heap memory (FFI Objects) is no longer valid.
+	If an element relies on an external memory it is a good place to trigger an update here"
+
+	self childrenDo: [ :eachChild | eachChild onSessionChanged: aNewSession ]
+]
+
 { #category : #'hooks - geometry' }
 BlElement >> onTransformationChanged [
 	"Is sent when my transformation changed"
 	
+	self eventDispatcher dispatchTransformationChanged.
 	self onTransformationInSpaceChanged
 ]
 
@@ -2621,6 +2708,7 @@ BlElement >> onTransformationChanged [
 BlElement >> onTransformationInSpaceChanged [
 	"Is sent when my transformation in space changed, it may be that my own transformation changed or of my parent"
 	
+	self eventDispatcher dispatchTransformationInSpaceChanged.
 	self children do: [ :eachChild | eachChild onTransformationInSpaceChanged ]
 ]
 
@@ -2713,6 +2801,9 @@ BlElement >> padding [
 BlElement >> padding: aBlInsets [
 	<argument: #aBlInsets satisfies: #notNil>
 
+	self padding = aBlInsets
+		ifTrue: [ ^ self ].
+
 	self constraintsDo: [ :c | c padding: aBlInsets ]
 ]
 
@@ -2735,6 +2826,9 @@ BlElement >> parentBoundsToLocal: aBounds [
 	immutable one that can be safely stored as instance variable."
 	<return: #BlBounds>
 
+	self hasParent
+		ifTrue: [ self parent localBoundsToChildren: aBounds ].
+
 	"then translate according to my position within the parent.
 	Note, that an element might have a position even if it does not have a parent"
 	aBounds translateBy: self position negated.
@@ -2751,7 +2845,11 @@ BlElement >> parentPointToLocal: aPoint [
 	<return: #Point>
 	| aLocalPoint |
 
-	aLocalPoint := aPoint translateBy: self position negated.
+	aLocalPoint := self hasParent
+		ifTrue: [ self parent localPointToChildren: aPoint ]
+		ifFalse: [ aPoint ].
+
+	aLocalPoint := aLocalPoint translateBy: self position negated.
 	aLocalPoint := self transformation inverseTransformPoint: aLocalPoint.
 	^ aLocalPoint
 ]
@@ -2773,8 +2871,8 @@ BlElement >> position: aPoint [
 ]
 
 { #category : #accessing }
-BlElement >> position: aPosition extent: anExtent [
-	"I do a hard work of changing element's position and extent.
+BlElement >> position: aPosition extent: anExtent context: aBlElementBoundsUpdater [
+	"I do the hard work of changing my position and extent.
 	This action must be very optimized in the sense of invalidation.
 	For example if element becomes smaller in both axis (horizontal and vertical)
 	it is enough to invalidate damaged area only once within old bounds,
@@ -2789,9 +2887,9 @@ BlElement >> position: aPosition extent: anExtent [
 
 	aPreviousPosition := self position.
 	aPreviousExtent := self extent.
-	
-	isPositionChanged := (aPreviousPosition closeTo: aPosition epsilon: BlElementChange epsilon) not.
-	isExtentChanged := (aPreviousExtent closeTo: anExtent epsilon: BlElementChange epsilon) not.
+
+	isPositionChanged := (aPreviousPosition closeTo: aPosition epsilon: self class epsilon) not.
+	isExtentChanged := (aPreviousExtent closeTo: anExtent epsilon: self class epsilon) not.
 
 	"nothing changed, return"
 	(isPositionChanged or: [ isExtentChanged ])
@@ -2800,7 +2898,7 @@ BlElement >> position: aPosition extent: anExtent [
 	isPositionChanged ifTrue: [
 		"change my position"
 		self bounds position: aPosition.
-		self changes positionChange: aPreviousPosition to: aPosition.
+		aBlElementBoundsUpdater changePositionFrom: aPreviousPosition to: aPosition of: self.
 
 		"position changed without extent => invalidate cached space bounds.
 		Note, that if extent changes we invalidate bounds cache anyway"
@@ -2809,7 +2907,7 @@ BlElement >> position: aPosition extent: anExtent [
 	isExtentChanged ifTrue: [ 
 		"change my extent"
 		self bounds extent: anExtent.
-		self changes extentChange: aPreviousExtent to: anExtent.
+		aBlElementBoundsUpdater changeExtentFrom: aPreviousExtent to: anExtent of: self.
 		boundsCache invalidateBoundsInLocal ]
 ]
 
@@ -2826,15 +2924,15 @@ BlElement >> positionInSpace [
 BlElement >> preventChildrenMouseEvents [
 	"Prevent my children from receiving mouse events"
 
-	shouldChildrenHandleMouseEvents := false
+	flags clearShouldChildrenHandleMouseEvents
 ]
 
 { #category : #'event handling' }
 BlElement >> preventMeAndChildrenMouseEvents [
 	"Prevent me and my children from receiving mouse events"
 
-	shouldHandleMouseEvents := false.
-	shouldChildrenHandleMouseEvents := false
+	flags clearShouldHandleMouseEvents.
+	flags clearShouldChildrenHandleMouseEvents
 ]
 
 { #category : #'event handling' }
@@ -2842,7 +2940,7 @@ BlElement >> preventMouseEvents [
 	"Prevent *me* from handling mouse events.
 	It does not influence the ability of the children to handle events, hence I am a local property"
 	
-	shouldHandleMouseEvents := false
+	flags clearShouldHandleMouseEvents.
 ]
 
 { #category : #'children accessing' }
@@ -2875,16 +2973,50 @@ BlElement >> previousSiblingSuchThat: aSelectionBlock do: aBlock [
 
 { #category : #printing }
 BlElement >> printOn: aStream [
-	| aLabel |
-
-	aLabel := self userData
-		at: #blocElementLabel
-		ifAbsent: [ self class name ].
-
 	aStream
-		nextPutAll: aLabel;
+		nextPutAll: self class name;
 		nextPutAll: ' @ ';
-		store: self identityHash
+		store: self identityHash;
+		space;
+		nextPut: $(;
+		print: self id;
+		nextPut: $)
+]
+
+{ #category : #'private - layout' }
+BlElement >> privatePreviousMeasurementSpec [
+	^ self userData
+		at: #blocPreviousMeasurementSpec
+		ifAbsent: [ nil ]
+]
+
+{ #category : #'private - layout' }
+BlElement >> privatePreviousMeasurementSpec: anObject [
+	self userData
+		at: #blocPreviousMeasurementSpec
+		put: anObject
+]
+
+{ #category : #'private - layout' }
+BlElement >> privateRequestingLayout: aBoolean [
+	aBoolean
+		ifTrue: [ flags addWaitingLayout ]
+		ifFalse: [
+			"If hasWaitingLayout is false it means that measurement and layout passes began,
+			true means that I still have to wait"
+			flags hasWaitingLayout
+				ifTrue: [ ^ self ] ].
+
+	aBoolean
+		ifTrue: [ flags addNeedsLayout ]
+		ifFalse: [ flags clearNeedsLayout ]
+]
+
+{ #category : #'api - properties' }
+BlElement >> properties [
+	^ self userData
+		at: #blocProperties
+		ifAbsentPut: [ BlElementCurrentProperties new element: self ]
 ]
 
 { #category : #'api - bounds' }
@@ -2894,7 +3026,7 @@ BlElement >> relocate: aPoint [
 	Note: I do not invalidate drawing bounds nor change actual position.
 	I only register an update request and ask my parent (if there is one) to recompute
 	layout. Do nothing if previous #relocate request was performed with the same coordinates.
-	Note: We can not guarantee that new element's position will be equal to reqeusted one,
+	Note: We can not guarantee that new element's position will be equal to requested one,
 	since it depends on the applied layout.
 	aPoint must not be nil"
 	<argument: #aPoint satisfies: #notNil>
@@ -2904,6 +3036,7 @@ BlElement >> relocate: aPoint [
 	self measuredBounds position = aPoint
 		ifTrue: [ ^ self ].
 
+	self constraints position: aPoint.
 	self measuredBounds position: aPoint.
 	self requestParentLayout
 ]
@@ -2916,6 +3049,8 @@ BlElement >> removeChild: anElement [
 	anElement must be my direct child"
 	self assert: [ anElement notNil ].
 	self assert: [ anElement parent == self ].
+	
+	self onChildToBeRemoved: anElement.
 
 	anElement parent: nil.
 	self children remove: anElement.
@@ -2948,7 +3083,8 @@ BlElement >> removeChildAt: anIndex [
 		description: [ 'anIndex must be within children array bounds' ].
 	
 	anElement := self children at: anIndex.
-
+	
+	self onChildToBeRemoved: anElement.
 	anElement parent: nil.
 
 	self children removeAt: anIndex.
@@ -2979,18 +3115,19 @@ BlElement >> removeChildren [
 	
 	"first update element's parent to nil"
 	oldChildren := self children.
-
+	
+	oldChildren do: [ :anElement | self onChildToBeRemoved: anElement ].
 	oldChildren do: [ :anElement | anElement parent: nil ].
 
 	"actually remove children"
 	self resetChildrenArray.
-	"send hook after elements has been removes"
+	"send hook after elements have been removed"
 	oldChildren do: [ :anElement | self dispatchChildRemoved: anElement ].
 	
-	"First of all, we have to damage area occupied by removed element"
+	"First of all, we have to damage area occupied by removed elements"
 	self invalidate.
 	
-	"then we request layout update while element is not yet removed"
+	"then we request layout update while elements are not yet removed"
 	self requestLayout
 ]
 
@@ -3006,15 +3143,16 @@ BlElement >> removeChildren: aListOfElements [
 		assert: [ aListOfElements allSatisfy: [ :anElement | anElement parent == self ] ]
 		description: [ 'I can only remove my direct children!' ].
 	
+	aListOfElements do: [ :anElement | self onChildToBeRemoved: anElement ].
 	aListOfElements do: [ :anElement |
 		anElement parent: nil ].
 	self children removeAll: aListOfElements.
 	aListOfElements do: [ :anElement | self dispatchChildRemoved: anElement ].
 	
-	"First of all, we have to damage area occupied by removed element"
+	"First of all, we have to damage area occupied by removed elements"
 	self invalidate.
 	
-	"then we request layout update while element is not yet removed"
+	"then we request layout update while elements are not yet removed"
 	self requestLayout
 ]
 
@@ -3034,6 +3172,7 @@ BlElement >> removeDetachedChild: anElement [
 	I must not be used within removeChild: because I have completely different intent; I am used to balance temporary
 	child detaching, while removeChild: is permanent."
 
+	self onChildToBeRemoved: anElement.
 	"send hook to the element that it was removed"
 	self dispatchChildRemoved: anElement
 ]
@@ -3050,7 +3189,7 @@ BlElement >> removeFromParent [
 
 { #category : #'children add/remove' }
 BlElement >> replaceChild: aChildElement with: anotherElement [
-	"Relace a given child relement with another element preserving the children order.
+	"Replace a given child element with another element preserving the children order.
 	Request layout and redraw an area occupied by anElement.
 	As result anElement sends BlElementRemovedEvent
 	anElement must not be nil.
@@ -3064,15 +3203,14 @@ BlElement >> replaceChild: aChildElement with: anotherElement [
 	aChildIndex := self childIndexOf: aChildElement.
 	self removeChildAt: aChildIndex.
 	
-	aChildElement userData
-		at: #blocContainer
-		ifPresent: [ :aName | self addChild: anotherElement at: aChildIndex as: aName ]
-		ifAbsent: [ self addChild: anotherElement at: aChildIndex ]
+	aChildElement containerName
+		ifNotNil: [ :aName | self addChild: anotherElement at: aChildIndex as: aName ]
+		ifNil: [ self addChild: anotherElement at: aChildIndex ]
 ]
 
 { #category : #'children add/remove' }
 BlElement >> replaceChild: aChildElement with: anotherElement as: aSymbol [
-	"Relace a given child relement with another element preserving the children order.
+	"Replace a given child relement with another element preserving the children order.
 	Request layout and redraw an area occupied by anElement.
 	As result anElement sends BlElementRemovedEvent
 	anElement must not be nil.
@@ -3095,13 +3233,19 @@ BlElement >> requestFocus [
 	If I am not added to the scene graph mark me as focused in order to re-try focus
 	request as soon I am added to the scene graph"
 
-	self isAttachedToSceneGraph
-		ifTrue: [ self requestFocus: self ]
-		ifFalse: [ self focused: true ]
+	self requestFocusDueTo: BlFocusUnknownReason uniqueInstance
 ]
 
 { #category : #'focus requesting' }
 BlElement >> requestFocus: aChildElement [
+	"Propagate focus request up in the scene graph with an original
+	element that requested focus"
+
+	self requestFocus: aChildElement dueTo: BlFocusUnknownReason uniqueInstance
+]
+
+{ #category : #'focus requesting' }
+BlElement >> requestFocus: aChildElement dueTo: aFocusReason [
 	"Propagate focus request up in the scene graph with an original
 	element that requested focus"
 
@@ -3110,8 +3254,22 @@ BlElement >> requestFocus: aChildElement [
 		description: [ 'I must be attached to the scene graph' ].
 
 	(self hasParent and: [ self parent isAttachedToSceneGraph ])
-		ifTrue: [ self parent requestFocus: aChildElement ]
-		ifFalse: [ self space requestFocusFor: aChildElement ]
+		ifTrue: [ self parent requestFocus: aChildElement dueTo: aFocusReason ]
+		ifFalse: [ self space requestFocusFor: aChildElement dueTo: aFocusReason ]
+]
+
+{ #category : #'focus requesting' }
+BlElement >> requestFocusDueTo: aFocusReason [
+	"Request a focus for this element.
+	If I am not added to the scene graph mark me as focused in order to re-try focus
+	request as soon I am added to the scene graph"
+
+	self isFocused
+		ifTrue: [ ^ self ].
+
+	self isAttachedToSceneGraph
+		ifTrue: [ self requestFocus: self dueTo: aFocusReason ]
+		ifFalse: [ self focused: true ]
 ]
 
 { #category : #layout }
@@ -3119,21 +3277,41 @@ BlElement >> requestLayout [
 	"Request invalidation of layout on next space pulse
 	@see #requestLayout: for more information"
 
-	Bloc debugModeEnabled
-		ifTrue: [ BlRequestLayoutSignal emit ].
-
 	self requestLayout: self
 ]
 
 { #category : #layout }
-BlElement >> requestLayout: anElement [
+BlElement >> requestLayout: aSourceElement [
 	"Request invalidation of layout on next space pulse originally
 	emitted by a given element.
 	Note: there should be no ===self isLayoutRequested ifTrue: [ ^ self ]===
 	check since there can be a case when I am requesting layout, but my parent
 	still does not"
 
-	self layout requestLayout: self from: anElement
+	flags hasShouldIgnoreLayoutRequests
+		ifTrue: [ ^ self ].
+
+	self privateRequestingLayout: true.
+
+	(self ~~ aSourceElement and: [
+		self isAttachedToSceneGraph and: [
+			self privatePreviousMeasurementSpec notNil and: [
+				self isLayoutBoundary and: [
+					self hasParent and: [
+						self parent isLayoutRequested not ] ] ] ] ])
+		ifTrue: [
+			self space requestLayout: self.
+			^ self ].
+	
+	"checking for parent to be not nil is faster when inlined instead
+	of using hasParent. It is critical because this method is being
+	sent quite often and should be performant"
+	self parent
+		ifNotNil: [ :aParent | aParent requestLayout: aSourceElement ]
+		"There is no parent, probably I am a root element, let's check Space"
+		ifNil: [ self space
+			"If my parent is nil, but I am added to space, we need to let it know that we requested a layout by asking for a next pulse"
+			ifNotNil: [ :aSpace | aSpace requestNextPulse ] ]
 ]
 
 { #category : #layout }
@@ -3147,149 +3325,27 @@ BlElement >> requestParentLayout [
 	self parent requestLayout
 ]
 
+{ #category : #'api - properties' }
+BlElement >> requestPropertiesComputation [
+	self properties markDirty.
+
+	self isAttachedToSceneGraph
+		ifTrue: [ self space requestPropertiesComputation: self ]
+		ifFalse: [  ].
+]
+
+{ #category : #'api - style' }
+BlElement >> requestStyle [
+	self styles markDirty.
+
+	self isAttachedToSceneGraph
+		ifTrue: [ self space requestStyle: self ]
+		ifFalse: [  ].
+]
+
 { #category : #initialization }
 BlElement >> resetChildrenArray [
 	children := Bloc preferableChildrenDataStructure new
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByDegrees: anAngle [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	"self transform
-		inherit;
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		rotateBy: anAngle axis: BlVector zAxis;
-		apply"
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByDegrees: angle axis: aVector [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		rotateBy: angle axis: aVector;
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByDegrees: angle axis: aVector around: anOrigin [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		origin: anOrigin;
-		rotateBy: angle axis: aVector;
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByDegrees: angle center: aPoint [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		origin: (BlAffineTransformationPositionOrigin position: aPoint);
-		rotateBy: angle axis: BlVector zAxis;
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByRadians: anAngle [ 
-	self 
-		deprecated: 'Use rotateByDegrees: instead'
-		on: 	'16 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-	^ self rotateByDegrees: anAngle radiansToDegrees
-]
-
-{ #category : #'geometry transform' }
-BlElement >> rotateByRadians: angle center: aPoint [ 
-	self 
-		deprecated: 'Use rotateByDegrees:center: instead'
-		on: 	'16 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-	^ self rotateByDegrees: angle radiansToDegrees center: aPoint 
-]
-
-{ #category : #'geometry transform' }
-BlElement >> scaleBy: aVector [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		scaleBy: (BlVector x: aVector asPoint x y: aVector asPoint y z: 1);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> scaleTo: aFactorPoint [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		scaleBy: (BlVector x: aFactorPoint asPoint x y: aFactorPoint asPoint y z: 1);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> scaleX: factor [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		scaleBy: (BlVector x: factor y: 1 z: 1);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> scaleX: fx Y: fy [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		scaleBy: (BlVector x: fx y: fy z: 1);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> scaleY: factor [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		scaleBy: (BlVector x: 1 y: factor z: 1);
-		apply
 ]
 
 { #category : #'event handling' }
@@ -3298,7 +3354,7 @@ BlElement >> shouldChildrenHandleMouseEvents [
 	Preventing my children from handling mouse event does not stop me from handling them"
 	<return: #Boolean>
 
-	^ shouldChildrenHandleMouseEvents
+	^ flags hasShouldChildrenHandleMouseEvents
 ]
 
 { #category : #'event handling' }
@@ -3307,7 +3363,7 @@ BlElement >> shouldHandleMouseEvents [
 	Preventing me from handling mouse event does not stop my children from doing so"
 	<return: #Boolean>
 
-	^ shouldHandleMouseEvents
+	^ flags hasShouldHandleMouseEvents
 ]
 
 { #category : #'api - opening' }
@@ -3345,7 +3401,7 @@ BlElement >> size: aPoint [
 { #category : #accessing }
 BlElement >> space [
 	"Return space to which I belong. Direct reference boosts performance.
-	Each element has a reference to the current space which is set at demand."
+	Each element has a reference to the current space which is set on demand."
 	<return: #BlSpace or: nil>
 	
 	spaceReference spaceDo: [ :aSpace | ^ aSpace ].
@@ -3363,7 +3419,7 @@ BlElement >> space [
 
 { #category : #accessing }
 BlElement >> space: aSpace [
-	"**I am internal Bloc api, do not use me diectly!**
+	"**I am internal Bloc api, do not use me directly!**
 	Set space to be accessed directly from my multiple methods.
 	Update the space reference for my children.
 	aSpace must not be nil."
@@ -3376,6 +3432,33 @@ BlElement >> space: aSpace [
 { #category : #accessing }
 BlElement >> spaceDo: aBlock [
 	self space ifNotNil: aBlock
+]
+
+{ #category : #'api - style' }
+BlElement >> states [
+	^ self userData
+		at: #blocStates
+		ifAbsentPut: [ BlElementStates new element: self ]
+]
+
+{ #category : #'api - style' }
+BlElement >> style [
+	self
+		deprecated: 'Please use #styles instead'
+		transformWith: '`@receiver style' -> '`@receiver styles'.
+
+	^ self styles
+]
+
+{ #category : #'api - style' }
+BlElement >> styles [
+	"Return current element styles.
+	See ${class:BlStyles}$ to learn more about styles"
+	<return: #BlElementStyles>
+
+	^ self userData
+		at: #blocStyles
+		ifAbsentPut: [ BlElementStyles new element: self ]
 ]
 
 { #category : #layout }
@@ -3417,8 +3500,8 @@ BlElement >> telemetry [
 
 { #category : #'children accessing' }
 BlElement >> topMostParent [
-	"Return a topmot parent in a scene graph.
-	A topmost parent is an element that does not have a parent by its own"
+	"Return a topmost parent in a scene graph.
+	A topmost parent is an element that does not have a parent of its own"
 	<return: #BlElement>
 
 	^ self hasParent
@@ -3426,9 +3509,20 @@ BlElement >> topMostParent [
 		ifFalse: [ self ]
 ]
 
-{ #category : #'focus requesting' }
-BlElement >> transferFocus [
-	self space transferFocusTo: self
+{ #category : #'children accessing' }
+BlElement >> topMostParentSuchThat: aConditionBlock ifFound: ifFoundBlock ifNone: ifNoneBlock [
+	"Find the topmost parent in a scene graph that satisfies a given condition."
+	| aTargetParent |
+	
+	aTargetParent := nil.
+	
+	self allParentsDo: [ :eachParent |
+		(aConditionBlock value: eachParent)
+			ifTrue: [ aTargetParent := eachParent ] ].
+		
+	^ aTargetParent
+		ifNil: ifNoneBlock
+		ifNotNil: ifFoundBlock
 ]
 
 { #category : #transformations }
@@ -3443,7 +3537,15 @@ BlElement >> transformation [
 
 { #category : #transformations }
 BlElement >> transformation: anElementTransformation [
-	transformation := anElementTransformation owner: self.
+	transformation := anElementTransformation asCachedTransformation
+		bounds: self bounds inLocal asRectangle.
+
+	self constraints shouldAccountTransformation
+		ifTrue: [ self requestParentLayout ].
+
+	self layout isInfluencedByTransformation
+		ifTrue: [ self requestLayout ].
+
 	self boundsCache invalidateBoundsInSpace.
 	self invalidate.
 
@@ -3461,39 +3563,6 @@ BlElement >> transformedBounds: aSpartaRectangle [
 	^ transformation transformBounds: (self boundsInLocal: aSpartaRectangle)
 ]
 
-{ #category : #'geometry transform' }
-BlElement >> translateBy: aDelta [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		inherit;
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		translateBy: (BlVector x: aDelta asPoint x y: aDelta asPoint y z: 0);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> translateTo: aPoint [
-	self 
-		deprecated: 'Use Transformation Builder instead'
-		on: 	'15 October 2017' 
-		in: 'Pharo-7.0+alpha.build.171.sha.df95d5fd8faa4c6bfd3537e26d67bb2c37daf99f (32 Bit)'.
-
-	self transform
-		origin: (BlAffineTransformationPositionOrigin position: 0@0);
-		translateBy: (BlVector x: aPoint asPoint x y: aPoint asPoint y z: 0);
-		apply
-]
-
-{ #category : #'geometry transform' }
-BlElement >> translateX: xFactor Y: yFactor [
-	self deprecated: 'Use translateBy: aBlPoint'.
-	self translateBy: xFactor @ yFactor
-]
-
 { #category : #'change reporting' }
 BlElement >> updateBackground [
 	self background matchExtent: self extent
@@ -3502,6 +3571,14 @@ BlElement >> updateBackground [
 { #category : #'change reporting' }
 BlElement >> updateGeometry [
 	self geometry matchElement: self
+]
+
+{ #category : #transformations }
+BlElement >> updateTransformationBounds [
+	"Update the bounds of the cached transformation in order to recompute its matrix
+	since transformation origin depends on the element's bounds"
+
+	transformation bounds: self bounds inLocal asRectangle
 ]
 
 { #category : #accessing }
@@ -3539,7 +3616,10 @@ BlElement >> visibility: aVisibility [
 	shouldRequestLayout
 		ifTrue: [ self requestLayout ].
 
-	self invalidate
+	"visibility does not change how *this* element is rendered,
+	instead it affects the rendering of the parent"
+	self hasParent
+		ifTrue: [ self parent invalidate ]
 ]
 
 { #category : #'geometry bounds' }
@@ -3630,7 +3710,7 @@ BlElement >> withAllChildrenAt: aPoint do: aBlock [
 	isPointInsideMe := self containsPoint: aPoint.
 	
 	"if point is not inside of me and I clip children, it literally
-	mean that there neither me nor my children are visible at a given point"
+	means that there neither me nor my children are visible at a given point"
 	(isPointInsideMe not and: [ self clipChildren ])
 		ifTrue: [ ^ false ].
 	
@@ -3650,7 +3730,7 @@ BlElement >> withAllChildrenAt: aPoint do: aBlock [
 		it no matter of the value of the boolean"
 		anyChildFound := anyChildFound or: (eachChildElement withAllChildrenAt: aPointInChildCoordinates do: aBlock) ].
 	
-	"if a point is inside of me, evaluate a block regardless whether there were any child"
+	"if a point is inside of me, evaluate a block regardless whether there was any child"
 	isPointInsideMe
 		ifTrue: [
 			aBlock value: self.
@@ -3744,6 +3824,29 @@ BlElement >> withAllParentsDo: aBlock [
 	
 	aBlock value: self.
 	self allParentsDo: aBlock
+]
+
+{ #category : #'children accessing' }
+BlElement >> withAllParentsUpTo: aParentElement detect: aBlock ifFound: ifFoundBlock ifNone: ifNoneBlock [
+	"Evaluate a block with each of my parents as an argument starting from myself up to but excluding the given parent element
+	and evaluate ifFoundBlock if for any any of the parents aBlock returned true"
+
+	self withAllParentsDo: [ :eachParent | 
+		eachParent == aParentElement
+			ifTrue: [ ^ ifNoneBlock value ].
+		(aBlock value: eachParent)
+			ifTrue: [ ^ ifFoundBlock value: eachParent ] ].
+	^ ifNoneBlock value
+]
+
+{ #category : #'children accessing' }
+BlElement >> withAllParentsUpTo: aParentElement do: aBlock [
+	"Evaluate a block with each of my parents as an argument starting from myself up to but excluding the given parent element"
+	
+	self withAllParentsDo: [ :eachParent |
+		eachParent == aParentElement
+			ifTrue: [ ^ self ].
+		aBlock value: eachParent ]
 ]
 
 { #category : #accessing }

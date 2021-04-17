@@ -22,6 +22,10 @@ BlTextAttribute >> = anObject [
 	^ self equals: anObject
 ]
 
+{ #category : #'text style' }
+BlTextAttribute >> applyOnFontAndStyleBuilder: aBlTextStyleBuilder [
+]
+
 { #category : #style }
 BlTextAttribute >> beNotOverwritableByStyler [
 	isOverwritableByStyler := false

@@ -23,13 +23,21 @@ TBlEventTarget >> addEventHandler: anEventHandler [
 ]
 
 { #category : #'event management' }
+TBlEventTarget >> addEventHandlerIfNotPresent: anEventHandler [
+	(self hasEventHandler: anEventHandler)
+		ifTrue: [ ^ self ].
+
+	self addEventHandler: anEventHandler
+]
+
+{ #category : #'event management' }
 TBlEventTarget >> addEventHandlerOn: anEventClass do: aBlock [
 	self addEventHandler: (BlEventHandler on: anEventClass do: aBlock)
 ]
 
 { #category : #'shortcut management' }
 TBlEventTarget >> addShortcut: aShortcut [
-	self shortcuts add: aShortcut
+	self eventDispatcher addShortcut: aShortcut
 ]
 
 { #category : #'event management' }
@@ -43,6 +51,22 @@ TBlEventTarget >> buildEventDispatchChain: aBlEventDispatcherChain [
 
 	self hasNextEventTarget
 		ifTrue: [ aResultChain := self nextEventTarget buildEventDispatchChain: aResultChain ].
+
+	^ aResultChain
+]
+
+{ #category : #'event management' }
+TBlEventTarget >> buildEventDispatchChain: aBlEventDispatcherChain upTo: anOtherEventTarget [
+	"Build an event dispatch chain up to but excluding a given other event target
+	Note: Dispatcher chain is persistent - I return a new instance"
+	<return: #BlEventDispatcherChain>
+	| aResultChain |
+
+	aResultChain := aBlEventDispatcherChain.
+	aResultChain := aResultChain withNext: self eventDispatcher.
+
+	(self hasNextEventTarget and: [ self nextEventTarget ~~ anOtherEventTarget ])
+		ifTrue: [ aResultChain := self nextEventTarget buildEventDispatchChain: aResultChain upTo: anOtherEventTarget ].
 
 	^ aResultChain
 ]
@@ -83,6 +107,16 @@ TBlEventTarget >> fireEvent: anEvent [
 
 	aDispatcherChain := self buildEventDispatchChain: BlEventDispatcherChain empty.
 	aDispatcherChain dispatchEvent: anEvent
+]
+
+{ #category : #'event management' }
+TBlEventTarget >> hasEventFilter: anEventHandler [
+	^ self eventDispatcher hasFilter: anEventHandler
+]
+
+{ #category : #'event management' }
+TBlEventTarget >> hasEventHandler: anEventHandler [
+	^ self eventDispatcher hasHandler: anEventHandler
 ]
 
 { #category : #'event management accessing' }
@@ -127,19 +161,19 @@ TBlEventTarget >> removeEventHandlersSuchThat: aBlock [
 
 { #category : #'shortcut management' }
 TBlEventTarget >> removeShortcut: aShortcut [
-	self shortcuts remove: aShortcut
+	self eventDispatcher removeShortcut: aShortcut
 ]
 
 { #category : #'shortcut management' }
 TBlEventTarget >> removeShortcutsWithCombination: aBlKeyCombination [
-	self shortcuts removeAllWithCombination: aBlKeyCombination
+	self eventDispatcher removeAllShortcutsWithCombination: aBlKeyCombination
 ]
 
 { #category : #'shortcut management' }
 TBlEventTarget >> shortcuts [
 	<return: #BlShortcutRegistry>
 
-	^ self eventDispatcher shortcutHandler shortcutRegistry
+	^ self eventDispatcher shortcutHandler shortcuts
 ]
 
 { #category : #'event management' }

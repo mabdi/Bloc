@@ -20,6 +20,7 @@ Class {
 	#traits : 'TBlDebug',
 	#classTraits : 'TBlDebug classTrait',
 	#instVars : [
+		'id',
 		'phases',
 		'currentPhaseLink'
 	],
@@ -51,18 +52,6 @@ BlSpaceFrame >> currentPhase [
 	^ currentPhaseLink value
 ]
 
-{ #category : #'as yet unclassified' }
-BlSpaceFrame >> gtInspectorPhasesIn: aComposite [
-	<gtInspectorPresentationOrder: 0>
-	
-	^ aComposite fastList
-		title: 'Phases';
-		display: [ self phases ];
-		format: [ :each | each = self currentPhase
-			ifTrue: [ each name asText allBold ]
-			ifFalse: [ each name ] ]
-]
-
 { #category : #testing }
 BlSpaceFrame >> hasNextPhase [
 	<return: #Boolean>
@@ -70,10 +59,24 @@ BlSpaceFrame >> hasNextPhase [
 	^ currentPhaseLink nextLink isNotNil
 ]
 
+{ #category : #accessing }
+BlSpaceFrame >> id [
+	"Return the frame id, which is a linearly increasing counter of frames"
+	<return: #Number>
+	
+	^ id
+]
+
+{ #category : #private }
+BlSpaceFrame >> incrementFrameId [
+	id := id + 1
+]
+
 { #category : #initialization }
 BlSpaceFrame >> initialize [
 	super initialize.
-
+	
+	id := 0.
 	phases := LinkedList new.
 	self initializePhases.
 	currentPhaseLink := phases firstLink
@@ -86,9 +89,18 @@ BlSpaceFrame >> initializePhases [
 		BlSpaceFrameHostValidationPhase new.
 		BlSpaceFrameEventPhase new.
 		BlSpaceFrameTaskPhase new.
-		BlSpaceFrameLayoutPhase new.
+		BlSpaceFrameStylePhase new.
+		BlSpaceFramePropertiesPhase new.
 		BlSpaceFrameDrawingValidationPhase new.
+		BlSpaceFrameLayoutPhase new.
 		BlSpaceFrameDrawingPhase new }
+]
+
+{ #category : #testing }
+BlSpaceFrame >> isAtFirstPhase [
+	<return: #Boolean>
+	
+	^ currentPhaseLink == phases firstLink
 ]
 
 { #category : #accessing }
@@ -126,7 +138,7 @@ BlSpaceFrame >> runCurrentPhaseOn: aSpace [
 
 { #category : #running }
 BlSpaceFrame >> runOn: aSpace [
-
+	self incrementFrameId.
 	self runCurrentPhaseOn: aSpace.
 
 	[ self hasNextPhase ] whileTrue: [

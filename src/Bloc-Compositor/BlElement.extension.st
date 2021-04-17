@@ -36,12 +36,12 @@ BlElement >> fullPaintOn: aCompositorPainter offset: anOffset [
 	"invisible elements are not rendered too"
 	self isVisible
 		ifFalse: [
-			needsPaint := false.
+			self markDoesNotNeedPaint.
 			^ self ].
 	
 	self invalidationBounds hasPositiveExtent
 		ifFalse: [
-			needsPaint := false.
+			self markDoesNotNeedPaint.
 			^ self ].
 
 	self telemetry
@@ -51,7 +51,7 @@ BlElement >> fullPaintOn: aCompositorPainter offset: anOffset [
 				ifTrue: [ self fullPaintCompositedOn: aCompositorPainter offset: anOffset + self position ]
 				ifFalse: [ self fullPaintWithTransformOn: aCompositorPainter offset: anOffset + self position ]. ].
 
-	needsPaint := false
+	self markDoesNotNeedPaint
 ]
 
 { #category : #'*Bloc-Compositor' }
@@ -83,7 +83,7 @@ BlElement >> markSkippedPaint [
 		ifTrue: [
 			self hasCompositionLayer
 				ifFalse: [ ^ self ].
-			needsPaint := true ]
+			flags addNeedsPaint. ]
 		ifFalse: [
 			self hasParent
 				ifTrue: [ self parent markSkippedPaint ] ]
@@ -121,7 +121,14 @@ BlElement >> paintClippedChildrenOn: aCompositorPainter offset: anOffset [
 BlElement >> paintMeAndChildrenOn: aCompositorPainter offset: anOffset [
 	<argument: #anOffset satisfies: #isSpartaScalarPoint>
 
-	self paintOn: aCompositorPainter offset: anOffset.
+	self errorHandler
+		with: self
+		do: [ self paintOn: aCompositorPainter offset: anOffset. ]
+		failed: [ :anError |
+			aCompositorPainter canvas fill
+				paint: Color lightGray;
+				path: self boundsInLocal;
+				draw ].
 
 	self
 		paintClippedChildrenOn: aCompositorPainter
@@ -131,7 +138,7 @@ BlElement >> paintMeAndChildrenOn: aCompositorPainter offset: anOffset [
 { #category : #'*Bloc-Compositor' }
 BlElement >> paintOn: aCompositorPainter offset: anOffset [
 	| isOriginal |
-	
+
 	"For performance reasons we would like to limit amount of access
 	to the painter's canvas. To do so we detect before-hand if there is anything
 	we need to draw using #shouldDrawBackgroundOrBorder, however this only works
@@ -143,7 +150,7 @@ BlElement >> paintOn: aCompositorPainter offset: anOffset [
 
 	(isOriginal and: [ self shouldDrawBackgroundOrBorder not and: [ self effect isNullEffect ] ])
 		ifTrue: [ ^ self ].
-		
+
 	self effect
 		paintOn: aCompositorPainter
 		offset: anOffset

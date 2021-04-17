@@ -74,7 +74,7 @@ BlTransformationBuilder >> flipY [
 BlTransformationBuilder >> inherit [
 	"Append existing element's transformations to the new transformation list"
 	
-	target transformation transformation
+	target transformation asElementTransformation transformation
 		do: [ :aTransformation | transformation addTransformation: aTransformation ]
 ]
 
@@ -103,6 +103,11 @@ BlTransformationBuilder >> origin: anAffineTransformationOrigin [
 	Note: I do not change origins of already exisiting transformations"
 
 	origin := anAffineTransformationOrigin
+]
+
+{ #category : #origin }
+BlTransformationBuilder >> rightCenterOrigin [
+	self origin: BlAffineTransformationRightCenterOrigin new
 ]
 
 { #category : #transformations }
